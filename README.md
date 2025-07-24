@@ -1,12 +1,16 @@
 # Jockular Kangaroo - K-12 Intervention Tracking System
 
-A comprehensive web application for tracking and managing student interventions in K-12 school districts, featuring:
+A comprehensive web application for tracking and managing student interventions in K-12 school districts. Built to help educators document, monitor, and improve intervention strategies for student success.
 
-- 🔒 Authentication with [AWS Cognito](https://aws.amazon.com/cognito/) + NextAuth v5
-- 🗄️ Database with [AWS RDS Aurora Serverless v2](https://aws.amazon.com/rds/aurora/) (PostgreSQL)
-- 🎨 UI with [Shadcn](https://ui.shadcn.com) and Tailwind CSS
-- 🚀 Deployment with [AWS Amplify](https://aws.amazon.com/amplify)
-- 🏗️ Infrastructure as Code with [AWS CDK](https://aws.amazon.com/cdk/)
+## Technology Stack
+
+- 🔒 **Authentication**: [AWS Cognito](https://aws.amazon.com/cognito/) + NextAuth v5 with role-based access
+- 🗄️ **Database**: [AWS RDS Aurora Serverless v2](https://aws.amazon.com/rds/aurora/) (PostgreSQL)
+- 🎨 **UI**: [Shadcn](https://ui.shadcn.com) components with Tailwind CSS v4
+- 🚀 **Deployment**: [AWS Amplify](https://aws.amazon.com/amplify) with SSR support
+- 🏗️ **Infrastructure**: [AWS CDK](https://aws.amazon.com/cdk/) v2 for all resources
+- 📄 **Storage**: AWS S3 for secure document attachments
+- ⚡ **Framework**: Next.js 15 with App Router and Server Actions
 
 ## AWS Architecture
 
@@ -21,14 +25,34 @@ This project provisions all core infrastructure using AWS CDK, following the AWS
 
 ## Features
 
-- 📚 **Student Management**: Comprehensive student profiles and tracking
-- 📈 **Intervention Tracking**: Record, monitor, and analyze student interventions
-- 📄 **Document Management**: Upload and attach supporting documents to interventions
-- 👥 **Role-Based Access**: Teachers, administrators, and counselors with appropriate permissions
-- 🎨 **Modern UI**: Beautiful, responsive interface built with Tailwind CSS and Shadcn UI
-- 🌙 **Dark Mode**: Full dark mode support for comfortable use any time
-- 🔐 **Secure Authentication**: AWS Cognito integration with Google SSO support
-- 📱 **Responsive Design**: Works seamlessly on desktop, tablet, and mobile devices
+### Core Functionality
+- 📚 **Student Management**: Comprehensive student profiles with demographics and status tracking
+- 📈 **Intervention Tracking**: Create and monitor interventions across multiple categories:
+  - Academic support (reading, math, study skills)
+  - Behavioral interventions
+  - Social-emotional learning
+  - Attendance improvement
+  - Health and wellness support
+- 📋 **Program Templates**: Pre-configured intervention programs with goals and materials
+- 🎯 **Goal Setting**: Track intervention goals and measure achievement
+- 📅 **Session Management**: Document intervention sessions with progress notes
+- 👥 **Team Collaboration**: Assign interventions to staff and track team members
+
+### Administrative Features
+- 🔐 **Role-Based Access Control**: Five distinct roles with tool-based permissions
+- 📄 **Document Management**: Secure file uploads with S3 integration
+- 📊 **Reports & Analytics**: Intervention effectiveness and student progress tracking
+- 🏫 **Multi-School Support**: Manage interventions across district schools
+- 📅 **Calendar Integration**: Schedule and track intervention sessions
+- ⚙️ **System Settings**: Configurable district-wide settings
+
+### Technical Features
+- 🎨 **Modern UI**: Beautiful, accessible interface with Shadcn components
+- 🌙 **Dark Mode**: Full dark mode support
+- 📱 **Responsive Design**: Optimized for desktop, tablet, and mobile
+- 🔒 **Enterprise Security**: AWS Cognito with MFA support
+- ⚡ **Real-time Updates**: Server Actions for instant data updates
+- 🌐 **Accessibility**: WCAG compliant for inclusive access
 
 ## Getting Started
 
