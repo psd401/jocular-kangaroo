@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "@/lib/auth/server-session"
 import { getNavigationItems as getNavigationItemsViaDataAPI } from "@/lib/db/data-api-adapter"
+import { getCurrentUserAction } from "@/actions/db/get-current-user-action"
+import { getUserTools } from "@/lib/auth/tool-helpers"
 import logger from '@/lib/logger';
 
 /**
@@ -82,10 +84,29 @@ export async function GET() {
     }
     
     try {
+      // Get current user and their tools
+      const userResult = await getCurrentUserAction();
+      if (!userResult.isSuccess || !userResult.data) {
+        return NextResponse.json(
+          { isSuccess: false, message: "Failed to get user data" },
+          { status: 500 }
+        )
+      }
+
+      const userTools = await getUserTools(userResult.data.id);
       const navItems = await getNavigationItemsViaDataAPI();
 
+      // Filter navigation items based on tool access
+      const filteredNavItems = navItems.filter(item => {
+        // If no tool_identifier is specified, the item is available to all
+        if (!item.toolIdentifier) return true;
+        
+        // Check if user has access to the required tool
+        return userTools.includes(item.toolIdentifier);
+      });
+
       // Format the navigation items
-      const formattedNavItems = navItems.map(item => ({
+      const formattedNavItems = filteredNavItems.map(item => ({
         id: item.id,
         label: item.label,
         icon: item.icon,
