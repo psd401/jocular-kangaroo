@@ -26,7 +26,7 @@ async function getS3Config() {
   
   const config = await Settings.getS3()
   s3ConfigCache = {
-    bucket: config.bucket || "aistudio-documents",
+    bucket: config.bucket || "jockular-kangaroo-documents",
     region: config.region || "us-east-1"
   }
   

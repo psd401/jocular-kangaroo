@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { DocumentsTab } from '../_components/documents-tab';
+import { executeSQL } from '@/lib/db/data-api-client';
 
 const statusConfig = {
   planned: { label: 'Planned', variant: 'secondary' as const },
@@ -44,6 +46,36 @@ export default async function InterventionPage({
   }
 
   const intervention = result.data;
+
+  // Fetch documents for this intervention
+  const documentsQuery = `
+    SELECT 
+      a.id, a.file_name, a.file_key, a.file_size, 
+      a.content_type, a.description, a.uploaded_at,
+      u.first_name, u.last_name
+    FROM intervention_attachments a
+    LEFT JOIN users u ON a.uploaded_by = u.id
+    WHERE a.intervention_id = $1
+    ORDER BY a.uploaded_at DESC
+  `;
+
+  const documentsResult = await executeSQL(documentsQuery, [
+    { name: "1", value: { longValue: interventionId } },
+  ]);
+
+  const documents = documentsResult.records?.map(record => ({
+    id: record[0].longValue!,
+    fileName: record[1].stringValue!,
+    fileKey: record[2].stringValue!,
+    fileSize: record[3].longValue!,
+    contentType: record[4].stringValue!,
+    description: record[5].stringValue,
+    uploadedAt: new Date(record[6].stringValue!),
+    uploadedBy: {
+      firstName: record[7].stringValue,
+      lastName: record[8].stringValue,
+    },
+  })) || [];
 
   return (
     <div className="space-y-6 p-8 pt-6">
@@ -353,16 +385,7 @@ export default async function InterventionPage({
 
         {/* Documents Tab */}
         <TabsContent value="documents" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold">Documents & Attachments</h3>
-            <Button>Upload Document</Button>
-          </div>
-          
-          <Card>
-            <CardContent className="text-center py-8">
-              <p className="text-muted-foreground">No documents uploaded yet</p>
-            </CardContent>
-          </Card>
+          <DocumentsTab interventionId={intervention.id} documents={documents} />
         </TabsContent>
       </Tabs>
     </div>
