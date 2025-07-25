@@ -10,6 +10,13 @@ export function snakeToCamel(str: string): string {
 }
 
 /**
+ * Converts a camelCase string to snake_case
+ */
+export function camelToSnake(str: string): string {
+  return str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+}
+
+/**
  * Transforms an object with snake_case keys to camelCase keys
  */
 export function transformSnakeToCamel<T = unknown>(obj: unknown): T {
