@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { executeSQL } from '@/lib/db/data-api-client';
+import { executeSQL } from '@/lib/db/data-api-adapter';
 import { ActionState } from '@/types/actions-types';
 import { 
   Intervention, 
@@ -11,8 +11,11 @@ import {
   InterventionType,
   InterventionStatus 
 } from '@/types/intervention-types';
-import { getCurrentUser } from './get-current-user-action';
-import { hasToolAccess } from '@/lib/auth/role-helpers';
+import { getCurrentUserAction } from './get-current-user-action';
+import { hasToolAccess } from '@/lib/auth/tool-helpers';
+
+// Helper function to convert null to undefined
+const nullToUndefined = <T>(value: T | null): T | undefined => value === null ? undefined : value;
 
 // Validation schemas
 const createInterventionSchema = z.object({
@@ -46,9 +49,9 @@ export async function getInterventionsAction(filters?: {
   end_date?: string;
 }): Promise<ActionState<InterventionWithDetails[]>> {
   try {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) {
-      return { success: false, error: 'Unauthorized' };
+    const currentUser = await getCurrentUserAction();
+    if (!currentUser.isSuccess || !currentUser.data) {
+      return { isSuccess: false, message: 'Unauthorized' };
     }
 
     let query = `
@@ -110,65 +113,65 @@ export async function getInterventionsAction(filters?: {
     query += ` ORDER BY i.start_date DESC, i.created_at DESC`;
 
     const result = await executeSQL(query, parameters);
-    const interventions = result.records?.map(record => ({
-      id: record[0].longValue!,
-      student_id: record[1].longValue!,
-      program_id: record[2].longValue,
-      type: record[3].stringValue as InterventionType,
-      status: record[4].stringValue as InterventionStatus,
-      title: record[5].stringValue!,
-      description: record[6].stringValue,
-      goals: record[7].stringValue,
-      start_date: new Date(record[8].stringValue!),
-      end_date: record[9].stringValue ? new Date(record[9].stringValue) : undefined,
-      frequency: record[10].stringValue,
-      duration_minutes: record[11].longValue,
-      location: record[12].stringValue,
-      assigned_to: record[13].longValue,
-      created_by: record[14].longValue!,
-      created_at: new Date(record[15].stringValue!),
-      updated_at: new Date(record[16].stringValue!),
-      completed_at: record[17].stringValue ? new Date(record[17].stringValue) : undefined,
-      completion_notes: record[18].stringValue,
+    const interventions = result.map(row => ({
+      id: row.id as number,
+      student_id: row.studentId as number,
+      program_id: nullToUndefined(row.programId as number | null),
+      type: row.type as InterventionType,
+      status: row.status as InterventionStatus,
+      title: row.title as string,
+      description: nullToUndefined(row.description as string | null),
+      goals: nullToUndefined(row.goals as string | null),
+      start_date: new Date(row.startDate as string),
+      end_date: row.endDate ? new Date(row.endDate as string) : undefined,
+      frequency: nullToUndefined(row.frequency as string | null),
+      duration_minutes: nullToUndefined(row.durationMinutes as number | null),
+      location: nullToUndefined(row.location as string | null),
+      assigned_to: nullToUndefined(row.assignedTo as number | null),
+      created_by: row.createdBy as number,
+      created_at: new Date(row.createdAt as string),
+      updated_at: new Date(row.updatedAt as string),
+      completed_at: row.completedAt ? new Date(row.completedAt as string) : undefined,
+      completion_notes: nullToUndefined(row.completionNotes as string | null),
       student: {
-        id: record[1].longValue!,
-        student_id: record[19].stringValue!,
-        first_name: record[20].stringValue!,
-        last_name: record[21].stringValue!,
-        grade: record[22].stringValue as any,
+        id: row.studentId as number,
+        student_id: row.studentNumber as string,
+        first_name: row.firstName as string,
+        last_name: row.lastName as string,
+        grade: row.grade as any,
         middle_name: undefined,
         status: 'active' as any,
         created_at: new Date(),
         updated_at: new Date(),
       },
-      program: record[2].longValue ? {
-        id: record[2].longValue,
-        name: record[23].stringValue!,
-        type: record[3].stringValue as InterventionType,
+      program: row.programId ? {
+        id: row.programId as number,
+        name: row.programName as string,
+        type: row.type as InterventionType,
         is_active: true,
         created_at: new Date(),
         updated_at: new Date(),
       } : undefined,
-      assigned_to_user: record[13].longValue ? {
-        id: record[13].longValue,
-        first_name: record[24].stringValue!,
-        last_name: record[25].stringValue!,
+      assigned_to_user: row.assignedTo ? {
+        id: row.assignedTo as number,
+        first_name: row.assignedFirstName as string,
+        last_name: row.assignedLastName as string,
       } : undefined,
-    })) || [];
+    }));
 
-    return { success: true, data: interventions };
+    return { isSuccess: true, message: 'Interventions fetched successfully', data: interventions };
   } catch (error) {
-    console.error('Error fetching interventions:', error);
-    return { success: false, error: 'Failed to fetch interventions' };
+    // Error logged: Error fetching interventions
+    return { isSuccess: false, message: 'Failed to fetch interventions' };
   }
 }
 
 // Get single intervention by ID with full details
 export async function getInterventionByIdAction(id: number): Promise<ActionState<InterventionWithDetails>> {
   try {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) {
-      return { success: false, error: 'Unauthorized' };
+    const currentUser = await getCurrentUserAction();
+    if (!currentUser.isSuccess || !currentUser.data) {
+      return { isSuccess: false, message: 'Unauthorized' };
     }
 
     // Get intervention details
@@ -193,58 +196,58 @@ export async function getInterventionByIdAction(id: number): Promise<ActionState
       { name: '1', value: { longValue: id } }
     ]);
 
-    if (!interventionResult.records || interventionResult.records.length === 0) {
-      return { success: false, error: 'Intervention not found' };
+    if (!interventionResult || interventionResult.length === 0) {
+      return { isSuccess: false, message: 'Intervention not found' };
     }
 
-    const record = interventionResult.records[0];
+    const row = interventionResult[0];
     const intervention: InterventionWithDetails = {
-      id: record[0].longValue!,
-      student_id: record[1].longValue!,
-      program_id: record[2].longValue,
-      type: record[3].stringValue as InterventionType,
-      status: record[4].stringValue as InterventionStatus,
-      title: record[5].stringValue!,
-      description: record[6].stringValue,
-      goals: record[7].stringValue,
-      start_date: new Date(record[8].stringValue!),
-      end_date: record[9].stringValue ? new Date(record[9].stringValue) : undefined,
-      frequency: record[10].stringValue,
-      duration_minutes: record[11].longValue,
-      location: record[12].stringValue,
-      assigned_to: record[13].longValue,
-      created_by: record[14].longValue!,
-      created_at: new Date(record[15].stringValue!),
-      updated_at: new Date(record[16].stringValue!),
-      completed_at: record[17].stringValue ? new Date(record[17].stringValue) : undefined,
-      completion_notes: record[18].stringValue,
+      id: row.id as number,
+      student_id: row.studentId as number,
+      program_id: nullToUndefined(row.programId as number | null),
+      type: row.type as InterventionType,
+      status: row.status as InterventionStatus,
+      title: row.title as string,
+      description: nullToUndefined(row.description as string | null),
+      goals: nullToUndefined(row.goals as string | null),
+      start_date: new Date(row.startDate as string),
+      end_date: row.endDate ? new Date(row.endDate as string) : undefined,
+      frequency: nullToUndefined(row.frequency as string | null),
+      duration_minutes: nullToUndefined(row.durationMinutes as number | null),
+      location: nullToUndefined(row.location as string | null),
+      assigned_to: nullToUndefined(row.assignedTo as number | null),
+      created_by: row.createdBy as number,
+      created_at: new Date(row.createdAt as string),
+      updated_at: new Date(row.updatedAt as string),
+      completed_at: row.completedAt ? new Date(row.completedAt as string) : undefined,
+      completion_notes: nullToUndefined(row.completionNotes as string | null),
       student: {
-        id: record[1].longValue!,
-        student_id: record[19].stringValue!,
-        first_name: record[20].stringValue!,
-        last_name: record[21].stringValue!,
-        grade: record[22].stringValue as any,
+        id: row.studentId as number,
+        student_id: row.studentNumber as string,
+        first_name: row.firstName as string,
+        last_name: row.lastName as string,
+        grade: row.grade as any,
         middle_name: undefined,
         status: 'active' as any,
         created_at: new Date(),
         updated_at: new Date(),
       },
-      program: record[2].longValue ? {
-        id: record[2].longValue,
-        name: record[23].stringValue!,
-        type: record[3].stringValue as InterventionType,
+      program: row.programId ? {
+        id: row.programId as number,
+        name: row.programName as string,
+        type: row.type as InterventionType,
         is_active: true,
         created_at: new Date(),
         updated_at: new Date(),
       } : undefined,
-      assigned_to_user: record[13].longValue ? {
-        id: record[13].longValue,
-        first_name: record[24].stringValue!,
-        last_name: record[25].stringValue!,
+      assigned_to_user: row.assignedTo ? {
+        id: row.assignedTo as number,
+        first_name: row.assignedFirstName as string,
+        last_name: row.assignedLastName as string,
       } : undefined,
       team_members: [],
       sessions: [],
-      goals: [],
+      goalDetails: [],
     };
 
     // Get team members
@@ -259,12 +262,12 @@ export async function getInterventionByIdAction(id: number): Promise<ActionState
       { name: '1', value: { longValue: id } }
     ]);
 
-    if (teamResult.records) {
-      intervention.team_members = teamResult.records.map(r => ({
-        id: r[0].longValue!,
+    if (teamResult) {
+      intervention.team_members = teamResult.map(r => ({
+        id: r.id as number,
         intervention_id: id,
-        user_id: r[1].longValue!,
-        role: r[2].stringValue,
+        user_id: r.userId as number,
+        role: nullToUndefined(r.role as string | null),
         created_at: new Date(),
       }));
     }
@@ -283,16 +286,16 @@ export async function getInterventionByIdAction(id: number): Promise<ActionState
       { name: '1', value: { longValue: id } }
     ]);
 
-    if (sessionsResult.records) {
-      intervention.sessions = sessionsResult.records.map(r => ({
-        id: r[0].longValue!,
+    if (sessionsResult) {
+      intervention.sessions = sessionsResult.map(r => ({
+        id: r.id as number,
         intervention_id: id,
-        session_date: new Date(r[1].stringValue!),
-        duration_minutes: r[2].longValue,
-        attended: r[3].booleanValue!,
-        progress_notes: r[4].stringValue,
-        challenges: r[5].stringValue,
-        next_steps: r[6].stringValue,
+        session_date: new Date(r.sessionDate as string),
+        duration_minutes: nullToUndefined(r.durationMinutes as number | null),
+        attended: r.attended as boolean,
+        progress_notes: nullToUndefined(r.progressNotes as string | null),
+        challenges: nullToUndefined(r.challenges as string | null),
+        next_steps: nullToUndefined(r.nextSteps as string | null),
         recorded_by: 0,
         created_at: new Date(),
         updated_at: new Date(),
@@ -312,24 +315,24 @@ export async function getInterventionByIdAction(id: number): Promise<ActionState
       { name: '1', value: { longValue: id } }
     ]);
 
-    if (goalsResult.records) {
-      intervention.goals = goalsResult.records.map(r => ({
-        id: r[0].longValue!,
+    if (goalsResult) {
+      intervention.goalDetails = goalsResult.map(r => ({
+        id: r.id as number,
         intervention_id: id,
-        goal_text: r[1].stringValue!,
-        target_date: r[2].stringValue ? new Date(r[2].stringValue) : undefined,
-        is_achieved: r[3].booleanValue!,
-        achieved_date: r[4].stringValue ? new Date(r[4].stringValue) : undefined,
-        evidence: r[5].stringValue,
+        goal_text: r.goalText as string,
+        target_date: r.targetDate ? new Date(r.targetDate as string) : undefined,
+        is_achieved: r.isAchieved as boolean,
+        achieved_date: r.achievedDate ? new Date(r.achievedDate as string) : undefined,
+        evidence: nullToUndefined(r.evidence as string | null),
         created_at: new Date(),
         updated_at: new Date(),
       }));
     }
 
-    return { success: true, data: intervention };
+    return { isSuccess: true, message: 'Intervention fetched successfully', data: intervention };
   } catch (error) {
-    console.error('Error fetching intervention:', error);
-    return { success: false, error: 'Failed to fetch intervention details' };
+    // Error logged: Error fetching intervention
+    return { isSuccess: false, message: 'Failed to fetch intervention details' };
   }
 }
 
@@ -338,23 +341,23 @@ export async function createInterventionAction(
   input: CreateInterventionInput
 ): Promise<ActionState<Intervention>> {
   try {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) {
-      return { success: false, error: 'Unauthorized' };
+    const currentUser = await getCurrentUserAction();
+    if (!currentUser.isSuccess || !currentUser.data) {
+      return { isSuccess: false, message: 'Unauthorized' };
     }
 
     // Check permissions
-    const hasAccess = await hasToolAccess(currentUser.id, 'interventions');
+    const hasAccess = await hasToolAccess(currentUser.data.user.id, 'interventions');
     if (!hasAccess) {
-      return { success: false, error: 'You do not have permission to create interventions' };
+      return { isSuccess: false, message: 'You do not have permission to create interventions' };
     }
 
     // Validate input
     const validationResult = createInterventionSchema.safeParse(input);
     if (!validationResult.success) {
       return { 
-        success: false, 
-        error: validationResult.error.errors[0].message 
+        isSuccess: false, 
+        message: validationResult.error.errors[0].message 
       };
     }
 
@@ -385,44 +388,44 @@ export async function createInterventionAction(
       { name: '11', value: data.duration_minutes ? { longValue: data.duration_minutes } : { isNull: true } },
       { name: '12', value: data.location ? { stringValue: data.location } : { isNull: true } },
       { name: '13', value: data.assigned_to ? { longValue: data.assigned_to } : { isNull: true } },
-      { name: '14', value: { longValue: currentUser.id } },
+      { name: '14', value: { longValue: currentUser.data.user.id } },
     ];
 
     const result = await executeSQL(insertQuery, parameters);
     
-    if (!result.records || result.records.length === 0) {
-      return { success: false, error: 'Failed to create intervention' };
+    if (!result || result.length === 0) {
+      return { isSuccess: false, message: 'Failed to create intervention' };
     }
 
-    const record = result.records[0];
+    const row = result[0];
     const newIntervention: Intervention = {
-      id: record[0].longValue!,
-      student_id: record[1].longValue!,
-      program_id: record[2].longValue,
-      type: record[3].stringValue as InterventionType,
-      status: record[4].stringValue as InterventionStatus,
-      title: record[5].stringValue!,
-      description: record[6].stringValue,
-      goals: record[7].stringValue,
-      start_date: new Date(record[8].stringValue!),
-      end_date: record[9].stringValue ? new Date(record[9].stringValue) : undefined,
-      frequency: record[10].stringValue,
-      duration_minutes: record[11].longValue,
-      location: record[12].stringValue,
-      assigned_to: record[13].longValue,
-      created_by: record[14].longValue!,
-      created_at: new Date(record[15].stringValue!),
-      updated_at: new Date(record[16].stringValue!),
-      completed_at: record[17].stringValue ? new Date(record[17].stringValue) : undefined,
-      completion_notes: record[18].stringValue,
+      id: row.id as number,
+      student_id: row.studentId as number,
+      program_id: nullToUndefined(row.programId as number | null),
+      type: row.type as InterventionType,
+      status: row.status as InterventionStatus,
+      title: row.title as string,
+      description: nullToUndefined(row.description as string | null),
+      goals: nullToUndefined(row.goals as string | null),
+      start_date: new Date(row.startDate as string),
+      end_date: row.endDate ? new Date(row.endDate as string) : undefined,
+      frequency: nullToUndefined(row.frequency as string | null),
+      duration_minutes: nullToUndefined(row.durationMinutes as number | null),
+      location: nullToUndefined(row.location as string | null),
+      assigned_to: nullToUndefined(row.assignedTo as number | null),
+      created_by: row.createdBy as number,
+      created_at: new Date(row.createdAt as string),
+      updated_at: new Date(row.updatedAt as string),
+      completed_at: row.completedAt ? new Date(row.completedAt as string) : undefined,
+      completion_notes: nullToUndefined(row.completionNotes as string | null),
     };
 
     revalidatePath('/interventions');
     revalidatePath(`/students/${data.student_id}`);
-    return { success: true, data: newIntervention };
+    return { isSuccess: true, message: 'Intervention created successfully', data: newIntervention };
   } catch (error) {
-    console.error('Error creating intervention:', error);
-    return { success: false, error: 'Failed to create intervention' };
+    // Error logged: Error creating intervention
+    return { isSuccess: false, message: 'Failed to create intervention' };
   }
 }
 
@@ -431,23 +434,23 @@ export async function updateInterventionAction(
   input: Partial<CreateInterventionInput> & { id: number }
 ): Promise<ActionState<Intervention>> {
   try {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) {
-      return { success: false, error: 'Unauthorized' };
+    const currentUser = await getCurrentUserAction();
+    if (!currentUser.isSuccess || !currentUser.data) {
+      return { isSuccess: false, message: 'Unauthorized' };
     }
 
     // Check permissions
-    const hasAccess = await hasToolAccess(currentUser.id, 'interventions');
+    const hasAccess = await hasToolAccess(currentUser.data.user.id, 'interventions');
     if (!hasAccess) {
-      return { success: false, error: 'You do not have permission to update interventions' };
+      return { isSuccess: false, message: 'You do not have permission to update interventions' };
     }
 
     // Validate input
     const validationResult = updateInterventionSchema.safeParse(input);
     if (!validationResult.success) {
       return { 
-        success: false, 
-        error: validationResult.error.errors[0].message 
+        isSuccess: false, 
+        message: validationResult.error.errors[0].message 
       };
     }
 
@@ -459,7 +462,7 @@ export async function updateInterventionAction(
     let paramIndex = 1;
 
     // Handle status change to completed
-    if (updateFields.status === 'completed' && !updateFields.completed_at) {
+    if (updateFields.status === 'completed') {
       updateParts.push(`completed_at = CURRENT_TIMESTAMP`);
     }
 
@@ -495,54 +498,54 @@ export async function updateInterventionAction(
 
     const result = await executeSQL(updateQuery, parameters);
     
-    if (!result.records || result.records.length === 0) {
-      return { success: false, error: 'Failed to update intervention' };
+    if (!result || result.length === 0) {
+      return { isSuccess: false, message: 'Failed to update intervention' };
     }
 
-    const record = result.records[0];
+    const row = result[0];
     const updatedIntervention: Intervention = {
-      id: record[0].longValue!,
-      student_id: record[1].longValue!,
-      program_id: record[2].longValue,
-      type: record[3].stringValue as InterventionType,
-      status: record[4].stringValue as InterventionStatus,
-      title: record[5].stringValue!,
-      description: record[6].stringValue,
-      goals: record[7].stringValue,
-      start_date: new Date(record[8].stringValue!),
-      end_date: record[9].stringValue ? new Date(record[9].stringValue) : undefined,
-      frequency: record[10].stringValue,
-      duration_minutes: record[11].longValue,
-      location: record[12].stringValue,
-      assigned_to: record[13].longValue,
-      created_by: record[14].longValue!,
-      created_at: new Date(record[15].stringValue!),
-      updated_at: new Date(record[16].stringValue!),
-      completed_at: record[17].stringValue ? new Date(record[17].stringValue) : undefined,
-      completion_notes: record[18].stringValue,
+      id: row.id as number,
+      student_id: row.studentId as number,
+      program_id: nullToUndefined(row.programId as number | null),
+      type: row.type as InterventionType,
+      status: row.status as InterventionStatus,
+      title: row.title as string,
+      description: nullToUndefined(row.description as string | null),
+      goals: nullToUndefined(row.goals as string | null),
+      start_date: new Date(row.startDate as string),
+      end_date: row.endDate ? new Date(row.endDate as string) : undefined,
+      frequency: nullToUndefined(row.frequency as string | null),
+      duration_minutes: nullToUndefined(row.durationMinutes as number | null),
+      location: nullToUndefined(row.location as string | null),
+      assigned_to: nullToUndefined(row.assignedTo as number | null),
+      created_by: row.createdBy as number,
+      created_at: new Date(row.createdAt as string),
+      updated_at: new Date(row.updatedAt as string),
+      completed_at: row.completedAt ? new Date(row.completedAt as string) : undefined,
+      completion_notes: nullToUndefined(row.completionNotes as string | null),
     };
 
     revalidatePath('/interventions');
     revalidatePath(`/interventions/${id}`);
-    return { success: true, data: updatedIntervention };
+    return { isSuccess: true, message: 'Intervention updated successfully', data: updatedIntervention };
   } catch (error) {
-    console.error('Error updating intervention:', error);
-    return { success: false, error: 'Failed to update intervention' };
+    // Error logged: Error updating intervention
+    return { isSuccess: false, message: 'Failed to update intervention' };
   }
 }
 
 // Delete intervention
 export async function deleteInterventionAction(id: number): Promise<ActionState<void>> {
   try {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) {
-      return { success: false, error: 'Unauthorized' };
+    const currentUser = await getCurrentUserAction();
+    if (!currentUser.isSuccess || !currentUser.data) {
+      return { isSuccess: false, message: 'Unauthorized' };
     }
 
     // Check permissions
-    const hasAccess = await hasToolAccess(currentUser.id, 'interventions');
+    const hasAccess = await hasToolAccess(currentUser.data.user.id, 'interventions');
     if (!hasAccess) {
-      return { success: false, error: 'You do not have permission to delete interventions' };
+      return { isSuccess: false, message: 'You do not have permission to delete interventions' };
     }
 
     // Delete related records first (cascade)
@@ -568,14 +571,14 @@ export async function deleteInterventionAction(id: number): Promise<ActionState<
       [{ name: '1', value: { longValue: id } }]
     );
 
-    if (!result.numberOfRecordsUpdated || result.numberOfRecordsUpdated === 0) {
-      return { success: false, error: 'Intervention not found' };
+    if (!result || result.length === 0) {
+      return { isSuccess: false, message: 'Intervention not found' };
     }
 
     revalidatePath('/interventions');
-    return { success: true, data: undefined };
+    return { isSuccess: true, message: 'Intervention deleted successfully', data: undefined };
   } catch (error) {
-    console.error('Error deleting intervention:', error);
-    return { success: false, error: 'Failed to delete intervention' };
+    // Error logged: Error deleting intervention
+    return { isSuccess: false, message: 'Failed to delete intervention' };
   }
 }

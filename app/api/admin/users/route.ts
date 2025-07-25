@@ -87,7 +87,7 @@ export async function PUT(request: Request) {
     const body = await request.json()
     const { id, ...updates } = body
 
-    const user = await updateUser(String(id), updates)
+    const user = await updateUser(Number(id), updates)
 
     return NextResponse.json({
       isSuccess: true,
@@ -119,7 +119,7 @@ export async function DELETE(request: Request) {
       )
     }
 
-    const user = await deleteUser(id)
+    const user = await deleteUser(Number(id))
 
     return NextResponse.json({
       isSuccess: true,

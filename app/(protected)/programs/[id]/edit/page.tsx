@@ -8,9 +8,10 @@ import { getInterventionProgramByIdAction } from '@/actions/db/intervention-prog
 export default async function EditProgramPage({ 
   params 
 }: { 
-  params: { id: string } 
+  params: Promise<{ id: string }> 
 }) {
-  const programId = parseInt(params.id);
+  const { id } = await params;
+  const programId = parseInt(id);
   
   if (isNaN(programId)) {
     notFound();
@@ -18,7 +19,7 @@ export default async function EditProgramPage({
 
   const result = await getInterventionProgramByIdAction(programId);
 
-  if (!result.success || !result.data) {
+  if (!result.isSuccess || !result.data) {
     notFound();
   }
 

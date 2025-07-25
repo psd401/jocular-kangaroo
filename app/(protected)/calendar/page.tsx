@@ -34,7 +34,7 @@ export default function CalendarPage() {
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Today's Schedule</CardTitle>
+              <CardTitle>Today&apos;s Schedule</CardTitle>
               <CardDescription>
                 Interventions scheduled for today
               </CardDescription>

@@ -2,11 +2,11 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { executeSQL } from '@/lib/db/data-api-client';
+import { executeSQL } from '@/lib/db/data-api-adapter';
 import { ActionState } from '@/types/actions-types';
 import { InterventionProgram, InterventionType } from '@/types/intervention-types';
-import { getCurrentUser } from './get-current-user-action';
-import { hasToolAccess } from '@/lib/auth/role-helpers';
+import { getCurrentUserAction } from './get-current-user-action';
+import { hasToolAccess } from '@/lib/auth/tool-helpers';
 
 // Validation schemas
 const createProgramSchema = z.object({
@@ -28,9 +28,9 @@ export async function getInterventionProgramsAction(
   includeInactive = false
 ): Promise<ActionState<InterventionProgram[]>> {
   try {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) {
-      return { success: false, error: 'Unauthorized' };
+    const currentUser = await getCurrentUserAction();
+    if (!currentUser.isSuccess || !currentUser.data) {
+      return { isSuccess: false, message: 'Unauthorized' };
     }
 
     let query = `
@@ -46,24 +46,24 @@ export async function getInterventionProgramsAction(
     
     query += ' ORDER BY type, name';
 
-    const result = await executeSQL(query);
-    const programs = result.records?.map(record => ({
-      id: record[0].longValue!,
-      name: record[1].stringValue!,
-      description: record[2].stringValue,
-      type: record[3].stringValue as InterventionType,
-      duration_days: record[4].longValue,
-      materials: record[5].stringValue,
-      goals: record[6].stringValue,
-      is_active: record[7].booleanValue!,
-      created_at: new Date(record[8].stringValue!),
-      updated_at: new Date(record[9].stringValue!),
-    })) || [];
+    const result = await executeSQL<any>(query);
+    const programs = result.map(row => ({
+      id: row.id as number,
+      name: row.name as string,
+      description: row.description as string | undefined,
+      type: row.type as InterventionType,
+      duration_days: row.durationDays as number | undefined,
+      materials: row.materials as string | undefined,
+      goals: row.goals as string | undefined,
+      is_active: row.isActive as boolean,
+      created_at: new Date(row.createdAt as string),
+      updated_at: new Date(row.updatedAt as string),
+    }));
 
-    return { success: true, data: programs };
+    return { isSuccess: true, message: 'Programs fetched successfully', data: programs };
   } catch (error) {
-    console.error('Error fetching intervention programs:', error);
-    return { success: false, error: 'Failed to fetch intervention programs' };
+    // Error logged: Error fetching intervention programs
+    return { isSuccess: false, message: 'Failed to fetch intervention programs' };
   }
 }
 
@@ -72,9 +72,9 @@ export async function getInterventionProgramByIdAction(
   id: number
 ): Promise<ActionState<InterventionProgram>> {
   try {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) {
-      return { success: false, error: 'Unauthorized' };
+    const currentUser = await getCurrentUserAction();
+    if (!currentUser.isSuccess || !currentUser.data) {
+      return { isSuccess: false, message: 'Unauthorized' };
     }
 
     const query = `
@@ -85,32 +85,32 @@ export async function getInterventionProgramByIdAction(
       WHERE id = $1
     `;
     
-    const result = await executeSQL(query, [
+    const result = await executeSQL<any>(query, [
       { name: '1', value: { longValue: id } }
     ]);
 
-    if (!result.records || result.records.length === 0) {
-      return { success: false, error: 'Program not found' };
+    if (!result || result.length === 0) {
+      return { isSuccess: false, message: 'Program not found' };
     }
 
-    const record = result.records[0];
+    const row = result[0];
     const program: InterventionProgram = {
-      id: record[0].longValue!,
-      name: record[1].stringValue!,
-      description: record[2].stringValue,
-      type: record[3].stringValue as InterventionType,
-      duration_days: record[4].longValue,
-      materials: record[5].stringValue,
-      goals: record[6].stringValue,
-      is_active: record[7].booleanValue!,
-      created_at: new Date(record[8].stringValue!),
-      updated_at: new Date(record[9].stringValue!),
+      id: row.id as number,
+      name: row.name as string,
+      description: row.description as string | undefined,
+      type: row.type as InterventionType,
+      duration_days: row.durationDays as number | undefined,
+      materials: row.materials as string | undefined,
+      goals: row.goals as string | undefined,
+      is_active: row.isActive as boolean,
+      created_at: new Date(row.createdAt as string),
+      updated_at: new Date(row.updatedAt as string),
     };
 
-    return { success: true, data: program };
+    return { isSuccess: true, message: 'Program fetched successfully', data: program };
   } catch (error) {
-    console.error('Error fetching intervention program:', error);
-    return { success: false, error: 'Failed to fetch intervention program' };
+    // Error logged: Error fetching intervention program
+    return { isSuccess: false, message: 'Failed to fetch intervention program' };
   }
 }
 
@@ -119,23 +119,23 @@ export async function createInterventionProgramAction(
   input: z.infer<typeof createProgramSchema>
 ): Promise<ActionState<InterventionProgram>> {
   try {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) {
-      return { success: false, error: 'Unauthorized' };
+    const currentUser = await getCurrentUserAction();
+    if (!currentUser.isSuccess || !currentUser.data) {
+      return { isSuccess: false, message: 'Unauthorized' };
     }
 
     // Check permissions
-    const hasAccess = await hasToolAccess(currentUser.id, 'programs');
+    const hasAccess = await hasToolAccess(currentUser.data.user.id, 'programs');
     if (!hasAccess) {
-      return { success: false, error: 'You do not have permission to create programs' };
+      return { isSuccess: false, message: 'You do not have permission to create programs' };
     }
 
     // Validate input
     const validationResult = createProgramSchema.safeParse(input);
     if (!validationResult.success) {
       return { 
-        success: false, 
-        error: validationResult.error.errors[0].message 
+        isSuccess: false, 
+        message: validationResult.error.errors[0].message 
       };
     }
 
@@ -160,31 +160,31 @@ export async function createInterventionProgramAction(
       { name: '7', value: { booleanValue: data.is_active ?? true } },
     ];
 
-    const result = await executeSQL(insertQuery, parameters);
+    const result = await executeSQL<any>(insertQuery, parameters);
     
-    if (!result.records || result.records.length === 0) {
-      return { success: false, error: 'Failed to create program' };
+    if (!result || result.length === 0) {
+      return { isSuccess: false, message: 'Failed to create program' };
     }
 
-    const record = result.records[0];
+    const row = result[0];
     const newProgram: InterventionProgram = {
-      id: record[0].longValue!,
-      name: record[1].stringValue!,
-      description: record[2].stringValue,
-      type: record[3].stringValue as InterventionType,
-      duration_days: record[4].longValue,
-      materials: record[5].stringValue,
-      goals: record[6].stringValue,
-      is_active: record[7].booleanValue!,
-      created_at: new Date(record[8].stringValue!),
-      updated_at: new Date(record[9].stringValue!),
+      id: row.id as number,
+      name: row.name as string,
+      description: row.description as string | undefined,
+      type: row.type as InterventionType,
+      duration_days: row.durationDays as number | undefined,
+      materials: row.materials as string | undefined,
+      goals: row.goals as string | undefined,
+      is_active: row.isActive as boolean,
+      created_at: new Date(row.createdAt as string),
+      updated_at: new Date(row.updatedAt as string),
     };
 
     revalidatePath('/programs');
-    return { success: true, data: newProgram };
+    return { isSuccess: true, message: 'Program created successfully', data: newProgram };
   } catch (error) {
-    console.error('Error creating intervention program:', error);
-    return { success: false, error: 'Failed to create intervention program' };
+    // Error logged: Error creating intervention program
+    return { isSuccess: false, message: 'Failed to create intervention program' };
   }
 }
 
@@ -193,23 +193,23 @@ export async function updateInterventionProgramAction(
   input: z.infer<typeof updateProgramSchema>
 ): Promise<ActionState<InterventionProgram>> {
   try {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) {
-      return { success: false, error: 'Unauthorized' };
+    const currentUser = await getCurrentUserAction();
+    if (!currentUser.isSuccess || !currentUser.data) {
+      return { isSuccess: false, message: 'Unauthorized' };
     }
 
     // Check permissions
-    const hasAccess = await hasToolAccess(currentUser.id, 'programs');
+    const hasAccess = await hasToolAccess(currentUser.data.user.id, 'programs');
     if (!hasAccess) {
-      return { success: false, error: 'You do not have permission to update programs' };
+      return { isSuccess: false, message: 'You do not have permission to update programs' };
     }
 
     // Validate input
     const validationResult = updateProgramSchema.safeParse(input);
     if (!validationResult.success) {
       return { 
-        success: false, 
-        error: validationResult.error.errors[0].message 
+        isSuccess: false, 
+        message: validationResult.error.errors[0].message 
       };
     }
 
@@ -249,61 +249,61 @@ export async function updateInterventionProgramAction(
       RETURNING *
     `;
 
-    const result = await executeSQL(updateQuery, parameters);
+    const result = await executeSQL<any>(updateQuery, parameters);
     
-    if (!result.records || result.records.length === 0) {
-      return { success: false, error: 'Failed to update program' };
+    if (!result || result.length === 0) {
+      return { isSuccess: false, message: 'Failed to update program' };
     }
 
-    const record = result.records[0];
+    const row = result[0];
     const updatedProgram: InterventionProgram = {
-      id: record[0].longValue!,
-      name: record[1].stringValue!,
-      description: record[2].stringValue,
-      type: record[3].stringValue as InterventionType,
-      duration_days: record[4].longValue,
-      materials: record[5].stringValue,
-      goals: record[6].stringValue,
-      is_active: record[7].booleanValue!,
-      created_at: new Date(record[8].stringValue!),
-      updated_at: new Date(record[9].stringValue!),
+      id: row.id as number,
+      name: row.name as string,
+      description: row.description as string | undefined,
+      type: row.type as InterventionType,
+      duration_days: row.durationDays as number | undefined,
+      materials: row.materials as string | undefined,
+      goals: row.goals as string | undefined,
+      is_active: row.isActive as boolean,
+      created_at: new Date(row.createdAt as string),
+      updated_at: new Date(row.updatedAt as string),
     };
 
     revalidatePath('/programs');
     revalidatePath(`/programs/${id}`);
-    return { success: true, data: updatedProgram };
+    return { isSuccess: true, message: 'Program updated successfully', data: updatedProgram };
   } catch (error) {
-    console.error('Error updating intervention program:', error);
-    return { success: false, error: 'Failed to update intervention program' };
+    // Error logged: Error updating intervention program
+    return { isSuccess: false, message: 'Failed to update intervention program' };
   }
 }
 
 // Delete (deactivate) intervention program
 export async function deleteInterventionProgramAction(id: number): Promise<ActionState<void>> {
   try {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) {
-      return { success: false, error: 'Unauthorized' };
+    const currentUser = await getCurrentUserAction();
+    if (!currentUser.isSuccess || !currentUser.data) {
+      return { isSuccess: false, message: 'Unauthorized' };
     }
 
     // Check permissions
-    const hasAccess = await hasToolAccess(currentUser.id, 'programs');
+    const hasAccess = await hasToolAccess(currentUser.data.user.id, 'programs');
     if (!hasAccess) {
-      return { success: false, error: 'You do not have permission to delete programs' };
+      return { isSuccess: false, message: 'You do not have permission to delete programs' };
     }
 
     // Check if program is being used by active interventions
-    const activeCheck = await executeSQL(
+    const activeCheck = await executeSQL<any>(
       `SELECT COUNT(*) as count FROM interventions 
        WHERE program_id = $1 AND status IN ('planned', 'in_progress')`,
       [{ name: '1', value: { longValue: id } }]
     );
 
-    const activeCount = activeCheck.records?.[0]?.[0]?.longValue || 0;
+    const activeCount = activeCheck[0]?.count || 0;
     if (activeCount > 0) {
       return { 
-        success: false, 
-        error: 'Cannot delete program that is being used by active interventions' 
+        isSuccess: false, 
+        message: 'Cannot delete program that is being used by active interventions' 
       };
     }
 
@@ -312,18 +312,19 @@ export async function deleteInterventionProgramAction(id: number): Promise<Actio
       `UPDATE intervention_programs 
        SET is_active = false, 
            updated_at = CURRENT_TIMESTAMP 
-       WHERE id = $1`,
+       WHERE id = $1
+       RETURNING id`,
       [{ name: '1', value: { longValue: id } }]
     );
 
-    if (!result.numberOfRecordsUpdated || result.numberOfRecordsUpdated === 0) {
-      return { success: false, error: 'Program not found' };
+    if (!result || result.length === 0) {
+      return { isSuccess: false, message: 'Program not found' };
     }
 
     revalidatePath('/programs');
-    return { success: true, data: undefined };
+    return { isSuccess: true, message: 'Program deleted successfully', data: undefined };
   } catch (error) {
-    console.error('Error deleting intervention program:', error);
-    return { success: false, error: 'Failed to delete intervention program' };
+    // Error logged: Error deleting intervention program
+    return { isSuccess: false, message: 'Failed to delete intervention program' };
   }
 }

@@ -9,9 +9,10 @@ import Link from 'next/link';
 export default async function EditStudentPage({ 
   params 
 }: { 
-  params: { id: string } 
+  params: Promise<{ id: string }> 
 }) {
-  const studentId = parseInt(params.id);
+  const { id } = await params;
+  const studentId = parseInt(id);
   
   if (isNaN(studentId)) {
     notFound();
@@ -22,12 +23,12 @@ export default async function EditStudentPage({
     getSchoolsAction()
   ]);
   
-  if (!studentResult.success || !studentResult.data) {
+  if (!studentResult.isSuccess || !studentResult.data) {
     notFound();
   }
 
   const student = studentResult.data;
-  const schools = schoolsResult.success ? schoolsResult.data : [];
+  const schools = schoolsResult.isSuccess && schoolsResult.data ? schoolsResult.data : [];
 
   return (
     <div className="container mx-auto py-6 max-w-3xl">

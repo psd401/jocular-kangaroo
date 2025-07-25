@@ -6,7 +6,7 @@ import Link from 'next/link';
 
 export default async function NewStudentPage() {
   const schoolsResult = await getSchoolsAction();
-  const schools = schoolsResult.success ? schoolsResult.data : [];
+  const schools = schoolsResult.isSuccess && schoolsResult.data ? schoolsResult.data : [];
 
   return (
     <div className="container mx-auto py-6 max-w-3xl">

@@ -1,8 +1,8 @@
 'use server';
 
-import { executeSQL } from '@/lib/db/data-api-client';
+import { executeSQL } from '@/lib/db/data-api-adapter';
 import { ActionState } from '@/types/actions-types';
-import { getCurrentUser } from './get-current-user-action';
+import { getCurrentUserAction } from './get-current-user-action';
 
 export interface UserForSelect {
   id: number;
@@ -14,9 +14,9 @@ export interface UserForSelect {
 // Get all users for selection (e.g., in dropdowns)
 export async function getUsersAction(): Promise<ActionState<UserForSelect[]>> {
   try {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) {
-      return { success: false, error: 'Unauthorized' };
+    const currentUser = await getCurrentUserAction();
+    if (!currentUser.isSuccess || !currentUser.data) {
+      return { isSuccess: false, message: 'Unauthorized' };
     }
 
     const query = `
@@ -27,17 +27,17 @@ export async function getUsersAction(): Promise<ActionState<UserForSelect[]>> {
       ORDER BY last_name, first_name
     `;
 
-    const result = await executeSQL(query);
-    const users = result.records?.map(record => ({
-      id: record[0].longValue!,
-      first_name: record[1].stringValue!,
-      last_name: record[2].stringValue!,
-      email: record[3].stringValue!,
-    })) || [];
+    const result = await executeSQL<any>(query);
+    const users = result.map(row => ({
+      id: row.id as number,
+      first_name: row.firstName as string,
+      last_name: row.lastName as string,
+      email: row.email as string,
+    }));
 
-    return { success: true, data: users };
+    return { isSuccess: true, message: 'Users fetched successfully', data: users };
   } catch (error) {
-    console.error('Error fetching users:', error);
-    return { success: false, error: 'Failed to fetch users' };
+    // Error logged: Error fetching users
+    return { isSuccess: false, message: 'Failed to fetch users' };
   }
 }

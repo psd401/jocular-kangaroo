@@ -4,8 +4,8 @@ import { Suspense } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import logger from "@/lib/logger"
-import { extractRDSString, ensureRDSNumber, toReactKey, ensureRDSString } from "@/lib/type-helpers"
-import type { SelectNavigationItem, SelectAssistantArchitect } from "@/types/db-types"
+import { extractRDSString, ensureRDSNumber, toReactKey, ensureRDSString, type RDSFieldValue } from "@/lib/type-helpers"
+import type { SelectAssistantArchitect } from "@/types/db-types"
 
 interface PageProps {
   params: Promise<{ pageId: string }>
@@ -39,11 +39,11 @@ export default async function PublicPage({ params }: PageProps) {
     ORDER BY position ASC
   `;
   const childItems = await executeSQL(childItemsSql, [
-    { name: 'parentId', value: { longValue: ensureRDSNumber(pageItem.id) } }
+    { name: 'parentId', value: { longValue: ensureRDSNumber(pageItem.id as RDSFieldValue) } }
   ]);
 
   // Helper to extract toolId from a link like /tools/assistant-architect/{toolId}
-  function extractAssistantId(link: any): number | null {
+  function extractAssistantId(link: RDSFieldValue): number | null {
     const linkStr = extractRDSString(link)
     if (!linkStr) return null
     const match = linkStr.match(/\/tools\/assistant-architect\/(\d+)/)
@@ -52,8 +52,8 @@ export default async function PublicPage({ params }: PageProps) {
 
   // For each child, try to extract assistant/tool id from the link
   const childAssistantIds = childItems
-    .map((child) => extractAssistantId(child.link))
-    .filter((id): id is number => Boolean(id) && !isNaN(id))
+    .map((child) => extractAssistantId(child.link as RDSFieldValue))
+    .filter((id): id is number => id !== null && !isNaN(id))
 
   let assistants: Record<number, SelectAssistantArchitect> = {}
   if (childAssistantIds.length > 0) {
@@ -66,14 +66,14 @@ export default async function PublicPage({ params }: PageProps) {
     }));
     
     const assistantRows = await executeSQL(assistantsSql, assistantParams);
-    assistants = Object.fromEntries(assistantRows.map((a) => [ensureRDSNumber(a.id), a as unknown as SelectAssistantArchitect]))
+    assistants = Object.fromEntries(assistantRows.map((a) => [ensureRDSNumber(a.id as unknown as RDSFieldValue), a as unknown as SelectAssistantArchitect]))
   }
 
   return (
     <>
-      <h1 className="text-3xl font-bold mb-4">{ensureRDSString(pageItem.label)}</h1>
+      <h1 className="text-3xl font-bold mb-4">{ensureRDSString(pageItem.label as unknown as RDSFieldValue)}</h1>
       {pageItem.description && (
-        <p className="mb-6 text-muted-foreground">{ensureRDSString(pageItem.description)}</p>
+        <p className="mb-6 text-muted-foreground">{ensureRDSString(pageItem.description as unknown as RDSFieldValue)}</p>
       )}
       <Suspense fallback={<div>Loading tools...</div>}>
         {childItems.length === 0 ? (
@@ -81,19 +81,19 @@ export default async function PublicPage({ params }: PageProps) {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
             {childItems.map((child) => {
-              const assistantId = extractAssistantId(child.link)
+              const assistantId = extractAssistantId(child.link as unknown as RDSFieldValue)
               const assistant = assistantId ? assistants[assistantId] : null
-              const href = extractRDSString(child.link) || "#"
+              const href = extractRDSString(child.link as unknown as RDSFieldValue) || "#"
               return (
                 <Link
-                  key={toReactKey(child.id)}
+                  key={toReactKey(child.id as unknown as RDSFieldValue)}
                   href={href}
                   className="block rounded-lg border bg-card shadow-sm hover:shadow-md transition p-6 group focus-visible:ring-2 focus-visible:ring-primary"
                 >
                   <div className="flex items-start">
-                    {assistant && assistant.image_path ? (
+                    {assistant && assistant.imagePath ? (
                       <Image
-                        src={`/assistant_logos/${assistant.image_path}`}
+                        src={`/assistant_logos/${assistant.imagePath}`}
                         alt={assistant.name}
                         width={64}
                         height={64}
@@ -101,15 +101,15 @@ export default async function PublicPage({ params }: PageProps) {
                       />
                     ) : (
                       <span className="text-3xl text-muted-foreground block">
-                        <span className={`i-lucide:${extractRDSString(child.icon) || 'file'}`} />
+                        <span className={`i-lucide:${extractRDSString(child.icon as unknown as RDSFieldValue) || 'file'}`} />
                       </span>
                     )}
                     <div className="ml-4">
                       <div className="font-semibold text-lg">
-                        {assistant ? ensureRDSString(assistant.name) : ensureRDSString(child.label)}
+                        {assistant ? ensureRDSString(assistant.name) : ensureRDSString(child.label as unknown as RDSFieldValue)}
                       </div>
                       <div className="text-muted-foreground text-sm mt-1">
-                        {assistant ? extractRDSString(assistant.description) : extractRDSString(child.description)}
+                        {assistant ? extractRDSString(assistant.description) : extractRDSString(child.description as unknown as RDSFieldValue)}
                       </div>
                     </div>
                   </div>

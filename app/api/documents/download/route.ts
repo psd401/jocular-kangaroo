@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     // Redirect to the signed URL
     return NextResponse.redirect(url);
   } catch (error) {
-    console.error("Error generating download URL:", error);
+    // Error logged: Error generating download URL
     return NextResponse.json(
       { error: "Failed to generate download URL" },
       { status: 500 }

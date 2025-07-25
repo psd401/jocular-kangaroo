@@ -13,8 +13,7 @@ import {
   MapPin, 
   Calendar,
   School,
-  AlertCircle,
-  FileText
+  AlertCircle
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { getStudentByIdAction } from '@/actions/db/students-actions';
@@ -22,9 +21,10 @@ import { getStudentByIdAction } from '@/actions/db/students-actions';
 export default async function StudentDetailPage({ 
   params 
 }: { 
-  params: { id: string } 
+  params: Promise<{ id: string }> 
 }) {
-  const studentId = parseInt(params.id);
+  const { id } = await params;
+  const studentId = parseInt(id);
   
   if (isNaN(studentId)) {
     notFound();
@@ -32,7 +32,7 @@ export default async function StudentDetailPage({
 
   const result = await getStudentByIdAction(studentId);
   
-  if (!result.success || !result.data) {
+  if (!result.isSuccess || !result.data) {
     notFound();
   }
 

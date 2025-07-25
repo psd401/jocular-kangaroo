@@ -2,11 +2,17 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { getCurrentUserAction } from "@/actions/db/get-current-user-action";
-import { SelectRole, SelectUser } from "@/types/db-types";
+import { SelectUser } from "@/types/db-types";
+
+interface Role {
+  id: number;
+  name: string;
+  description?: string;
+}
 
 interface UserContextValue {
   user: SelectUser | null;
-  roles: SelectRole[];
+  roles: Role[];
   loading: boolean;
 }
 
@@ -23,7 +29,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     getCurrentUserAction().then((res) => {
-      if (res.isSuccess) {
+      if (res.isSuccess && res.data) {
         setState({ user: res.data.user, roles: res.data.roles, loading: false });
       } else {
         setState((prev) => ({ ...prev, loading: false }));
@@ -32,4 +38,4 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return <UserContext.Provider value={state}>{children}</UserContext.Provider>;
-} 
+}

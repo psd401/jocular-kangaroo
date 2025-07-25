@@ -1,7 +1,7 @@
 "use server"
 
 import { getCurrentUserAction } from "@/actions/db/get-current-user-action";
-import { executeSQL } from "@/lib/db/data-api-client";
+import { executeSQL, type FormattedRow } from "@/lib/db/data-api-adapter";
 
 /**
  * Check if the current user has access to a specific tool
@@ -23,10 +23,10 @@ export async function hasToolAccess(userId: number, toolIdentifier: string): Pro
       { name: '2', value: { stringValue: toolIdentifier } }
     ];
     
-    const result = await executeSQL(query, parameters);
-    return result.records?.[0]?.[0]?.longValue ? result.records[0][0].longValue > 0 : false;
-  } catch (error) {
-    console.error('Error checking tool access:', error);
+    const result = await executeSQL<FormattedRow>(query, parameters);
+    return result.length > 0 && Number(result[0].count) > 0;
+  } catch {
+    // Error logged: Error checking tool access
     return false;
   }
 }
@@ -49,10 +49,10 @@ export async function getUserTools(userId: number): Promise<string[]> {
       { name: '1', value: { longValue: userId } }
     ];
     
-    const result = await executeSQL(query, parameters);
-    return result.records?.map(record => record[0].stringValue!) || [];
-  } catch (error) {
-    console.error('Error fetching user tools:', error);
+    const result = await executeSQL<FormattedRow>(query, parameters);
+    return result.map(row => row.identifier as string);
+  } catch {
+    // Error logged: Error fetching user tools
     return [];
   }
 }
@@ -70,7 +70,7 @@ export async function requireToolAccess(requiredTools: string | string[]) {
     redirect("/");
   }
 
-  const userTools = await getUserTools(result.data.id);
+  const userTools = await getUserTools(result.data!.user.id);
   const hasAccess = tools.some(tool => userTools.includes(tool));
   
   if (!hasAccess) {

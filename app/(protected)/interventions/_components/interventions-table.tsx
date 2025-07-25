@@ -196,10 +196,10 @@ export function InterventionsTable({
                   <TableCell>
                     <div>
                       <div className="font-medium">
-                        {intervention.student.first_name} {intervention.student.last_name}
+                        {intervention.student?.first_name} {intervention.student?.last_name}
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        ID: {intervention.student.student_id} | Grade: {intervention.student.grade}
+                        ID: {intervention.student?.student_id} | Grade: {intervention.student?.grade}
                       </div>
                     </div>
                   </TableCell>

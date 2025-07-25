@@ -35,12 +35,12 @@ export function RoleEditDialog({ user, roles, open, onOpenChange }: RoleEditDial
     try {
       const result = await updateUserRolesAction(user.id, selectedRoles);
       
-      if (result.success) {
+      if (result.isSuccess) {
         toast.success('User roles updated successfully');
         onOpenChange(false);
         router.refresh();
       } else {
-        toast.error(result.error || 'Failed to update user roles');
+        toast.error(result.message || 'Failed to update user roles');
       }
     } catch (error) {
       toast.error('An unexpected error occurred');

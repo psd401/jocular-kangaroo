@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import { getUsersWithRolesAction, getRolesAction } from '@/actions/db/roles-actions';
 import { UsersTable } from './_components/users-table';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default async function UsersPage() {
   // Fetch users and roles
@@ -10,10 +10,10 @@ export default async function UsersPage() {
     getRolesAction()
   ]);
 
-  const users = usersResult.success ? usersResult.data : [];
-  const roles = rolesResult.success ? rolesResult.data : [];
+  const users = usersResult.isSuccess ? usersResult.data : [];
+  const roles = rolesResult.isSuccess ? rolesResult.data : [];
 
-  if (!usersResult.success || !rolesResult.success) {
+  if (!usersResult.isSuccess || !rolesResult.isSuccess) {
     return (
       <div className="p-8">
         <Card>
@@ -38,7 +38,7 @@ export default async function UsersPage() {
       </div>
 
       <Suspense fallback={<div>Loading...</div>}>
-        <UsersTable users={users} roles={roles} />
+        <UsersTable users={users || []} roles={roles || []} />
       </Suspense>
     </div>
   );

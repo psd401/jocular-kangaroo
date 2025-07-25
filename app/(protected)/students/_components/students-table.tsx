@@ -109,12 +109,12 @@ export function StudentsTable({ students: initialStudents, schools }: StudentsTa
     setIsDeleting(true);
     const result = await deleteStudentAction(studentToDelete.id);
 
-    if (result.success) {
+    if (result.isSuccess) {
       toast.success('Student record deactivated successfully');
       setStudents(students.filter(s => s.id !== studentToDelete.id));
       router.refresh();
     } else {
-      toast.error(result.error || 'Failed to delete student');
+      toast.error(result.message || 'Failed to delete student');
     }
 
     setIsDeleting(false);

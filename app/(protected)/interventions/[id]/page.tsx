@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { DocumentsTab } from '../_components/documents-tab';
-import { executeSQL } from '@/lib/db/data-api-client';
+import { executeSQL } from '@/lib/db/data-api-adapter';
 
 const statusConfig = {
   planned: { label: 'Planned', variant: 'secondary' as const },
@@ -31,9 +31,10 @@ const typeConfig = {
 export default async function InterventionPage({ 
   params 
 }: { 
-  params: { id: string } 
+  params: Promise<{ id: string }> 
 }) {
-  const interventionId = parseInt(params.id);
+  const { id } = await params;
+  const interventionId = parseInt(id);
   
   if (isNaN(interventionId)) {
     notFound();
@@ -41,7 +42,7 @@ export default async function InterventionPage({
 
   const result = await getInterventionByIdAction(interventionId);
 
-  if (!result.success || !result.data) {
+  if (!result.isSuccess || !result.data) {
     notFound();
   }
 
@@ -63,17 +64,17 @@ export default async function InterventionPage({
     { name: "1", value: { longValue: interventionId } },
   ]);
 
-  const documents = documentsResult.records?.map(record => ({
-    id: record[0].longValue!,
-    fileName: record[1].stringValue!,
-    fileKey: record[2].stringValue!,
-    fileSize: record[3].longValue!,
-    contentType: record[4].stringValue!,
-    description: record[5].stringValue,
-    uploadedAt: new Date(record[6].stringValue!),
+  const documents = documentsResult?.map(record => ({
+    id: Number(record.id),
+    fileName: String(record.fileName),
+    fileKey: String(record.fileKey),
+    fileSize: Number(record.fileSize),
+    contentType: String(record.contentType),
+    description: record.description ? String(record.description) : undefined,
+    uploadedAt: new Date(String(record.uploadedAt)),
     uploadedBy: {
-      firstName: record[7].stringValue,
-      lastName: record[8].stringValue,
+      firstName: record.firstName ? String(record.firstName) : undefined,
+      lastName: record.lastName ? String(record.lastName) : undefined,
     },
   })) || [];
 
@@ -90,7 +91,7 @@ export default async function InterventionPage({
           <div>
             <h1 className="text-3xl font-bold tracking-tight">{intervention.title}</h1>
             <p className="text-muted-foreground">
-              Intervention for {intervention.student.first_name} {intervention.student.last_name}
+              Intervention for {intervention.student?.first_name} {intervention.student?.last_name}
             </p>
           </div>
         </div>
@@ -120,7 +121,7 @@ export default async function InterventionPage({
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="sessions">Sessions ({intervention.sessions?.length || 0})</TabsTrigger>
-          <TabsTrigger value="goals">Goals ({intervention.goals?.length || 0})</TabsTrigger>
+          <TabsTrigger value="goals">Goals</TabsTrigger>
           <TabsTrigger value="team">Team ({intervention.team_members?.length || 0})</TabsTrigger>
           <TabsTrigger value="documents">Documents</TabsTrigger>
         </TabsList>
@@ -137,19 +138,19 @@ export default async function InterventionPage({
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Name:</span>
                   <span className="font-medium">
-                    {intervention.student.first_name} {intervention.student.last_name}
+                    {intervention.student?.first_name} {intervention.student?.last_name}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Student ID:</span>
-                  <span className="font-medium">{intervention.student.student_id}</span>
+                  <span className="font-medium">{intervention.student?.student_id}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Grade:</span>
-                  <span className="font-medium">{intervention.student.grade}</span>
+                  <span className="font-medium">{intervention.student?.grade}</span>
                 </div>
                 <div className="pt-2">
-                  <Link href={`/students/${intervention.student.id}`}>
+                  <Link href={`/students/${intervention.student?.id}`}>
                     <Button variant="outline" size="sm" className="w-full">
                       View Student Profile
                     </Button>
@@ -331,35 +332,12 @@ export default async function InterventionPage({
             <Button>Add Goal</Button>
           </div>
           
-          {intervention.goals && intervention.goals.length > 0 ? (
-            <div className="space-y-4">
-              {intervention.goals.map((goal) => (
-                <Card key={goal.id}>
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <CardTitle className="text-base">{goal.goal_text}</CardTitle>
-                      <Badge variant={goal.is_achieved ? 'success' : 'secondary'}>
-                        {goal.is_achieved ? 'Achieved' : 'In Progress'}
-                      </Badge>
-                    </div>
-                    <CardDescription>
-                      {goal.target_date && (
-                        <>Target: {format(new Date(goal.target_date), 'MMM d, yyyy')}</>
-                      )}
-                      {goal.achieved_date && (
-                        <> • Achieved: {format(new Date(goal.achieved_date), 'MMM d, yyyy')}</>
-                      )}
-                    </CardDescription>
-                  </CardHeader>
-                  {goal.evidence && (
-                    <CardContent>
-                      <span className="font-medium text-sm">Evidence:</span>
-                      <p className="text-sm text-muted-foreground">{goal.evidence}</p>
-                    </CardContent>
-                  )}
-                </Card>
-              ))}
-            </div>
+          {intervention.goals ? (
+            <Card>
+              <CardContent className="py-6">
+                <p className="text-sm">{intervention.goals}</p>
+              </CardContent>
+            </Card>
           ) : (
             <Card>
               <CardContent className="text-center py-8">

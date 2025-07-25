@@ -29,8 +29,8 @@ export default async function StudentsPage() {
 
       <Suspense fallback={<div>Loading...</div>}>
         <StudentsTable 
-          students={studentsResult.success ? studentsResult.data : []}
-          schools={schoolsResult.success ? schoolsResult.data : []}
+          students={studentsResult.isSuccess && studentsResult.data ? studentsResult.data : []}
+          schools={schoolsResult.isSuccess && schoolsResult.data ? schoolsResult.data : []}
         />
       </Suspense>
     </div>

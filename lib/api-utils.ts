@@ -54,8 +54,7 @@ export function withErrorHandling<T>(
       return NextResponse.json(
         {
           success: false,
-          message: result.message,
-          ...(result.error && { error: result.error })
+          message: result.message
         }, 
         { status: statusCode }
       );

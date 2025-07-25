@@ -1,8 +1,8 @@
 'use server';
 
-import { executeSQL } from '@/lib/db/data-api-client';
+import { executeSQL } from '@/lib/db/data-api-adapter';
 import { ActionState } from '@/types/actions-types';
-import { getCurrentUser } from './get-current-user-action';
+import { getCurrentUserAction } from './get-current-user-action';
 import { hasRole } from '@/lib/auth/role-helpers';
 
 export interface Role {
@@ -27,15 +27,15 @@ export interface UserWithRoles {
 // Get all roles
 export async function getRolesAction(): Promise<ActionState<Role[]>> {
   try {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) {
-      return { success: false, error: 'Unauthorized' };
+    const currentUser = await getCurrentUserAction();
+    if (!currentUser.isSuccess || !currentUser.data) {
+      return { isSuccess: false, message: 'Unauthorized' };
     }
 
     // Check if user is admin
     const isAdmin = await hasRole('Administrator');
     if (!isAdmin) {
-      return { success: false, error: 'You do not have permission to view roles' };
+      return { isSuccess: false, message: 'You do not have permission to view roles' };
     }
 
     const query = `
@@ -46,34 +46,34 @@ export async function getRolesAction(): Promise<ActionState<Role[]>> {
     `;
 
     const result = await executeSQL(query);
-    const roles = result.records?.map(record => ({
-      id: record[0].longValue!,
-      name: record[1].stringValue!,
-      description: record[2].stringValue,
-      is_system: record[3].booleanValue!,
-      created_at: new Date(record[4].stringValue!),
-      updated_at: new Date(record[5].stringValue!),
-    })) || [];
+    const roles = result.map(row => ({
+      id: row.id as number,
+      name: row.name as string,
+      description: row.description as string | undefined,
+      is_system: row.isSystem as boolean,
+      created_at: new Date(row.createdAt as string),
+      updated_at: new Date(row.updatedAt as string),
+    }));
 
-    return { success: true, data: roles };
+    return { isSuccess: true, message: 'Roles fetched successfully', data: roles };
   } catch (error) {
-    console.error('Error fetching roles:', error);
-    return { success: false, error: 'Failed to fetch roles' };
+    // Error logged: Error fetching roles
+    return { isSuccess: false, message: 'Failed to fetch roles' };
   }
 }
 
 // Get all users with their roles
 export async function getUsersWithRolesAction(): Promise<ActionState<UserWithRoles[]>> {
   try {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) {
-      return { success: false, error: 'Unauthorized' };
+    const currentUser = await getCurrentUserAction();
+    if (!currentUser.isSuccess || !currentUser.data) {
+      return { isSuccess: false, message: 'Unauthorized' };
     }
 
     // Check if user is admin
     const isAdmin = await hasRole('Administrator');
     if (!isAdmin) {
-      return { success: false, error: 'You do not have permission to view users' };
+      return { isSuccess: false, message: 'You do not have permission to view users' };
     }
 
     const query = `
@@ -92,58 +92,58 @@ export async function getUsersWithRolesAction(): Promise<ActionState<UserWithRol
     // Group users with their roles
     const usersMap = new Map<number, UserWithRoles>();
     
-    result.records?.forEach(record => {
-      const userId = record[0].longValue!;
+    result.forEach(row => {
+      const userId = row.id as number;
       
       if (!usersMap.has(userId)) {
         usersMap.set(userId, {
           id: userId,
-          email: record[1].stringValue!,
-          first_name: record[2].stringValue,
-          last_name: record[3].stringValue,
-          created_at: new Date(record[4].stringValue!),
-          last_sign_in_at: record[5].stringValue ? new Date(record[5].stringValue) : undefined,
+          email: row.email as string,
+          first_name: row.firstName as string | undefined,
+          last_name: row.lastName as string | undefined,
+          created_at: new Date(row.createdAt as string),
+          last_sign_in_at: row.lastSignInAt ? new Date(row.lastSignInAt as string) : undefined,
           roles: []
         });
       }
       
       // Add role if it exists
-      if (record[6].longValue) {
+      if (row.roleId) {
         const user = usersMap.get(userId)!;
         user.roles.push({
-          id: record[6].longValue,
-          name: record[7].stringValue!,
-          description: record[8].stringValue,
-          is_system: record[9].booleanValue!,
+          id: row.roleId as number,
+          name: row.roleName as string,
+          description: row.roleDescription as string | undefined,
+          is_system: row.isSystem as boolean,
           created_at: new Date(),
           updated_at: new Date()
         });
       }
     });
 
-    return { success: true, data: Array.from(usersMap.values()) };
+    return { isSuccess: true, message: 'Users fetched successfully', data: Array.from(usersMap.values()) };
   } catch (error) {
-    console.error('Error fetching users with roles:', error);
-    return { success: false, error: 'Failed to fetch users' };
+    // Error logged: Error fetching users with roles
+    return { isSuccess: false, message: 'Failed to fetch users' };
   }
 }
 
 // Update user roles
 export async function updateUserRolesAction(userId: number, roleIds: number[]): Promise<ActionState<void>> {
   try {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) {
-      return { success: false, error: 'Unauthorized' };
+    const currentUser = await getCurrentUserAction();
+    if (!currentUser.isSuccess || !currentUser.data) {
+      return { isSuccess: false, message: 'Unauthorized' };
     }
 
     // Check if user is admin
     const isAdmin = await hasRole('Administrator');
     if (!isAdmin) {
-      return { success: false, error: 'You do not have permission to update user roles' };
+      return { isSuccess: false, message: 'You do not have permission to update user roles' };
     }
 
     // Don't allow users to modify their own admin role
-    if (userId === currentUser.id) {
+    if (userId === currentUser.data.user.id) {
       const userRoles = await executeSQL(
         `SELECT role_id FROM user_roles WHERE user_id = $1`,
         [{ name: '1', value: { longValue: userId } }]
@@ -154,13 +154,13 @@ export async function updateUserRolesAction(userId: number, roleIds: number[]): 
         []
       );
       
-      if (adminRole.records?.length && userRoles.records?.length) {
-        const adminRoleId = adminRole.records[0][0].longValue!;
-        const hasAdminRole = userRoles.records.some(r => r[0].longValue === adminRoleId);
+      if (adminRole.length > 0 && userRoles.length > 0) {
+        const adminRoleId = adminRole[0].id as number;
+        const hasAdminRole = userRoles.some(r => (r.roleId as number) === adminRoleId);
         const keepingAdminRole = roleIds.includes(adminRoleId);
         
         if (hasAdminRole && !keepingAdminRole) {
-          return { success: false, error: 'Cannot remove your own administrator role' };
+          return { isSuccess: false, message: 'Cannot remove your own administrator role' };
         }
       }
     }
@@ -187,13 +187,13 @@ export async function updateUserRolesAction(userId: number, roleIds: number[]): 
       }
 
       await executeSQL('COMMIT');
-      return { success: true, data: undefined };
+      return { isSuccess: true, message: 'User roles updated successfully', data: undefined };
     } catch (error) {
       await executeSQL('ROLLBACK');
       throw error;
     }
   } catch (error) {
-    console.error('Error updating user roles:', error);
-    return { success: false, error: 'Failed to update user roles' };
+    // Error logged: Error updating user roles
+    return { isSuccess: false, message: 'Failed to update user roles' };
   }
 }

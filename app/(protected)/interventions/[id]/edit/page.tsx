@@ -11,9 +11,10 @@ import { getUsersAction } from '@/actions/db/users-actions';
 export default async function EditInterventionPage({ 
   params 
 }: { 
-  params: { id: string } 
+  params: Promise<{ id: string }> 
 }) {
-  const interventionId = parseInt(params.id);
+  const { id } = await params;
+  const interventionId = parseInt(id);
   
   if (isNaN(interventionId)) {
     notFound();
@@ -27,14 +28,14 @@ export default async function EditInterventionPage({
     getUsersAction(),
   ]);
 
-  if (!interventionResult.success || !interventionResult.data) {
+  if (!interventionResult.isSuccess || !interventionResult.data) {
     notFound();
   }
 
   const intervention = interventionResult.data;
-  const students = studentsResult.success ? studentsResult.data : [];
-  const programs = programsResult.success ? programsResult.data : [];
-  const users = usersResult.success ? usersResult.data : [];
+  const students = studentsResult.isSuccess ? studentsResult.data : [];
+  const programs = programsResult.isSuccess ? programsResult.data : [];
+  const users = usersResult.isSuccess ? usersResult.data : [];
 
   return (
     <div className="space-y-6 p-8 pt-6 max-w-4xl mx-auto">
@@ -47,7 +48,7 @@ export default async function EditInterventionPage({
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Edit Intervention</h1>
           <p className="text-muted-foreground">
-            Update intervention details for {intervention.student.first_name} {intervention.student.last_name}
+            Update intervention details for {intervention.student?.first_name} {intervention.student?.last_name}
           </p>
         </div>
       </div>

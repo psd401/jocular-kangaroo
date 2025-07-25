@@ -1,10 +1,10 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { hasToolAccess } from '@/lib/auth/tool-helpers';
-import { getCurrentUser } from '@/actions/db/get-current-user-action';
+import { getCurrentUserAction } from '@/actions/db/get-current-user-action';
 
 export default async function SchoolsPage() {
-  const currentUser = await getCurrentUser();
-  if (!currentUser) {
+  const currentUserResult = await getCurrentUserAction();
+  if (!currentUserResult.isSuccess || !currentUserResult.data) {
     return (
       <div className="p-8">
         <Card>
@@ -19,7 +19,7 @@ export default async function SchoolsPage() {
     );
   }
 
-  const hasAccess = await hasToolAccess(currentUser.id, 'schools');
+  const hasAccess = await hasToolAccess(currentUserResult.data.user.id, 'schools');
   if (!hasAccess) {
     return (
       <div className="p-8">

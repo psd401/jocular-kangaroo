@@ -8,7 +8,7 @@ import { ProgramsTable } from './_components/programs-table';
 export default async function ProgramsPage() {
   // Fetch all programs including inactive ones
   const programsResult = await getInterventionProgramsAction(true);
-  const programs = programsResult.success ? programsResult.data : [];
+  const programs = programsResult.isSuccess && programsResult.data ? programsResult.data : [];
 
   return (
     <div className="space-y-4 p-8 pt-6">

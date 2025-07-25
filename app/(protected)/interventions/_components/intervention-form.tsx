@@ -122,13 +122,13 @@ export function InterventionForm({
         ? await updateInterventionAction({ ...data, id: intervention.id })
         : await createInterventionAction(data);
 
-      if (result.success) {
+      if (result.isSuccess) {
         toast.success(intervention ? 'Intervention updated' : 'Intervention created');
         router.push(`/interventions/${result.data?.id || intervention?.id}`);
       } else {
-        toast.error(result.error || 'Something went wrong');
+        toast.error(result.message || 'Something went wrong');
       }
-    } catch (error) {
+    } catch {
       toast.error('An unexpected error occurred');
     } finally {
       setIsSubmitting(false);

@@ -8,8 +8,7 @@ import {
   Calendar,
   ArrowRight,
   BookOpen,
-  School,
-  FileText
+  School
 } from 'lucide-react';
 
 export default function DashboardPage() {

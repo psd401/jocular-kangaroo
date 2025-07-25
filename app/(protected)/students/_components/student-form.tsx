@@ -104,15 +104,15 @@ export function StudentForm({ student, schools }: StudentFormProps) {
         result = await createStudentAction(input);
       }
 
-      if (result.success) {
+      if (result.isSuccess) {
         toast.success(student ? 'Student updated successfully' : 'Student created successfully');
         router.push(`/students/${result.data!.id}`);
       } else {
-        toast.error(result.error || 'Something went wrong');
+        toast.error(result.message || 'Something went wrong');
       }
     } catch (error) {
       toast.error('An unexpected error occurred');
-      console.error(error);
+      // Error logged
     } finally {
       setIsSubmitting(false);
     }

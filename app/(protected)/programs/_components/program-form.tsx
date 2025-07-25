@@ -79,11 +79,11 @@ export function ProgramForm({ program }: ProgramFormProps) {
         ? await updateInterventionProgramAction({ ...data, id: program.id })
         : await createInterventionProgramAction(data);
 
-      if (result.success) {
+      if (result.isSuccess) {
         toast.success(program ? 'Program updated' : 'Program created');
         router.push(`/programs/${result.data?.id || program?.id}`);
       } else {
-        toast.error(result.error || 'Something went wrong');
+        toast.error(result.message || 'Something went wrong');
       }
     } catch (error) {
       toast.error('An unexpected error occurred');

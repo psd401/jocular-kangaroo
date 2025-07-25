@@ -93,16 +93,24 @@ export async function GET() {
         )
       }
 
-      const userTools = await getUserTools(userResult.data.id);
+      const userTools = await getUserTools(userResult.data.user.id);
       const navItems = await getNavigationItemsViaDataAPI();
+
+      // Get all tools to map toolId to tool identifier
+      const { executeSQL } = await import('@/lib/db/data-api-adapter');
+      const toolsResult = await executeSQL('SELECT id, identifier FROM tools');
+      const toolIdToIdentifier = Object.fromEntries(
+        toolsResult.map(tool => [Number(tool.id), String(tool.identifier)])
+      );
 
       // Filter navigation items based on tool access
       const filteredNavItems = navItems.filter(item => {
         // If no tool_identifier is specified, the item is available to all
-        if (!item.toolIdentifier) return true;
+        if (!item.toolId) return true;
         
         // Check if user has access to the required tool
-        return userTools.includes(item.toolIdentifier);
+        const toolIdentifier = toolIdToIdentifier[item.toolId];
+        return toolIdentifier && userTools.includes(toolIdentifier);
       });
 
       // Format the navigation items
@@ -111,9 +119,9 @@ export async function GET() {
         label: item.label,
         icon: item.icon,
         link: item.link,
-        parent_id: item.parent_id,
+        parent_id: item.parentId,
         parent_label: null, // This column doesn't exist in the table
-        tool_id: item.tool_id,
+        tool_id: item.toolId,
         position: item.position,
         type: item.type || 'link',
         description: item.description || null,

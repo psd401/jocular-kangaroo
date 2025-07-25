@@ -19,9 +19,10 @@ const typeConfig = {
 export default async function ProgramPage({ 
   params 
 }: { 
-  params: { id: string } 
+  params: Promise<{ id: string }> 
 }) {
-  const programId = parseInt(params.id);
+  const { id } = await params;
+  const programId = parseInt(id);
   
   if (isNaN(programId)) {
     notFound();
@@ -29,7 +30,7 @@ export default async function ProgramPage({
 
   const result = await getInterventionProgramByIdAction(programId);
 
-  if (!result.success || !result.data) {
+  if (!result.isSuccess || !result.data) {
     notFound();
   }
 

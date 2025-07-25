@@ -3,39 +3,41 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { getInterventionsAction } from '@/actions/db/interventions-actions';
+import { InterventionStatus, InterventionType } from '@/types/intervention-types';
 import { InterventionsTable } from './_components/interventions-table';
 
 export default async function InterventionsPage({
   searchParams,
 }: {
-  searchParams: { 
+  searchParams: Promise<{ 
     search?: string; 
     status?: string; 
     type?: string;
     page?: string;
     perPage?: string;
-  }
+  }>
 }) {
-  const currentPage = Number(searchParams.page) || 1;
-  const perPage = Number(searchParams.perPage) || 20;
+  const params = await searchParams;
+  const currentPage = Number(params.page) || 1;
+  const perPage = Number(params.perPage) || 20;
 
   // Fetch interventions with filters
   const interventionsResult = await getInterventionsAction({
-    status: searchParams.status as any,
-    type: searchParams.type as any,
+    status: params.status as InterventionStatus | undefined,
+    type: params.type as InterventionType | undefined,
   });
 
-  const interventions = interventionsResult.success ? interventionsResult.data : [];
+  const interventions = interventionsResult.isSuccess ? interventionsResult.data : [];
 
   // Filter by search term if provided
-  const filteredInterventions = searchParams.search
+  const filteredInterventions = params.search
     ? interventions.filter(intervention => {
-        const searchTerm = searchParams.search!.toLowerCase();
+        const searchTerm = params.search!.toLowerCase();
         return (
           intervention.title.toLowerCase().includes(searchTerm) ||
-          intervention.student.first_name.toLowerCase().includes(searchTerm) ||
-          intervention.student.last_name.toLowerCase().includes(searchTerm) ||
-          intervention.student.student_id.toLowerCase().includes(searchTerm) ||
+          (intervention.student?.first_name?.toLowerCase().includes(searchTerm) ?? false) ||
+          (intervention.student?.last_name?.toLowerCase().includes(searchTerm) ?? false) ||
+          (intervention.student?.student_id?.toLowerCase().includes(searchTerm) ?? false) ||
           (intervention.program?.name?.toLowerCase().includes(searchTerm) ?? false)
         );
       })

@@ -1,16 +1,12 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from '@/components/ui/card';
 import {
   Dialog,
@@ -58,11 +54,22 @@ interface DocumentsTabProps {
 }
 
 export function DocumentsTab({ interventionId, documents: initialDocs }: DocumentsTabProps) {
-  const router = useRouter();
   const [documents, setDocuments] = useState(initialDocs);
   const [isUploading, setIsUploading] = useState(false);
   const [isDeleting, setIsDeleting] = useState<number | null>(null);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+
+  const fetchDocuments = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/interventions/${interventionId}/documents`);
+      if (response.ok) {
+        const result = await response.json();
+        setDocuments(result.data);
+      }
+    } catch {
+      // Error logged: Failed to fetch documents
+    }
+  }, [interventionId]);
 
   const handleUpload = useCallback(async (formData: FormData) => {
     setIsUploading(true);
@@ -77,7 +84,7 @@ export function DocumentsTab({ interventionId, documents: initialDocs }: Documen
         throw new Error(error.error || 'Upload failed');
       }
 
-      const result = await response.json();
+      await response.json();
       toast.success('Document uploaded successfully');
       setUploadDialogOpen(false);
       
@@ -88,19 +95,7 @@ export function DocumentsTab({ interventionId, documents: initialDocs }: Documen
     } finally {
       setIsUploading(false);
     }
-  }, [interventionId]);
-
-  const fetchDocuments = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/interventions/${interventionId}/documents`);
-      if (response.ok) {
-        const result = await response.json();
-        setDocuments(result.data);
-      }
-    } catch (error) {
-      console.error('Failed to fetch documents:', error);
-    }
-  }, [interventionId]);
+  }, [interventionId, fetchDocuments]);
 
   const handleDelete = useCallback(async (attachmentId: number) => {
     if (!confirm('Are you sure you want to delete this document?')) {
@@ -142,7 +137,7 @@ export function DocumentsTab({ interventionId, documents: initialDocs }: Documen
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-    } catch (error) {
+    } catch {
       toast.error('Failed to download document');
     }
   }, []);

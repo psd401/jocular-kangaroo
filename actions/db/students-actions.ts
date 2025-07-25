@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { executeSQL } from '@/lib/db/data-api-client';
+import { executeSQL } from '@/lib/db/data-api-adapter';
 import { ActionState } from '@/types/actions-types';
 import { 
   Student, 
@@ -11,8 +11,8 @@ import {
   GradeLevel, 
   StudentStatus 
 } from '@/types/intervention-types';
-import { getCurrentUser } from './get-current-user-action';
-import { hasToolAccess } from '@/lib/auth/role-helpers';
+import { getCurrentUserAction } from './get-current-user-action';
+import { hasToolAccess } from '@/lib/auth/tool-helpers';
 
 // Validation schemas
 const createStudentSchema = z.object({
@@ -44,9 +44,9 @@ export async function getStudentsAction(filters?: {
   search?: string;
 }): Promise<ActionState<Student[]>> {
   try {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) {
-      return { success: false, error: 'Unauthorized' };
+    const currentUser = await getCurrentUserAction();
+    if (!currentUser.isSuccess || !currentUser.data) {
+      return { isSuccess: false, message: 'Unauthorized' };
     }
 
     let query = `
@@ -96,44 +96,44 @@ export async function getStudentsAction(filters?: {
     query += ` ORDER BY s.last_name, s.first_name`;
 
     const result = await executeSQL(query, parameters);
-    const students = result.records?.map(record => ({
-      id: record[0].longValue!,
-      student_id: record[1].stringValue!,
-      first_name: record[2].stringValue!,
-      last_name: record[3].stringValue!,
-      middle_name: record[4].stringValue,
-      date_of_birth: record[5].stringValue ? new Date(record[5].stringValue) : undefined,
-      grade: record[6].stringValue as GradeLevel,
-      school_id: record[7].longValue,
-      status: record[8].stringValue as StudentStatus,
-      email: record[9].stringValue,
-      phone: record[10].stringValue,
-      address: record[11].stringValue,
-      emergency_contact_name: record[12].stringValue,
-      emergency_contact_phone: record[13].stringValue,
-      notes: record[14].stringValue,
-      created_at: new Date(record[15].stringValue!),
-      updated_at: new Date(record[16].stringValue!),
-      created_by: record[17].longValue,
-      updated_by: record[18].longValue,
-      school_name: record[19].stringValue,
-      created_by_name: record[20].stringValue,
-      updated_by_name: record[21].stringValue,
-    })) || [];
+    const students = result.map((row: any) => ({
+      id: row.id as number,
+      student_id: row.studentId as string,
+      first_name: row.firstName as string,
+      last_name: row.lastName as string,
+      middle_name: row.middleName as string | undefined,
+      date_of_birth: row.dateOfBirth ? new Date(row.dateOfBirth as string) : undefined,
+      grade: row.grade as GradeLevel,
+      school_id: row.schoolId as number | undefined,
+      status: row.status as StudentStatus,
+      email: row.email as string | undefined,
+      phone: row.phone as string | undefined,
+      address: row.address as string | undefined,
+      emergency_contact_name: row.emergencyContactName as string | undefined,
+      emergency_contact_phone: row.emergencyContactPhone as string | undefined,
+      notes: row.notes as string | undefined,
+      created_at: new Date(row.createdAt as string),
+      updated_at: new Date(row.updatedAt as string),
+      created_by: row.createdBy as number | undefined,
+      updated_by: row.updatedBy as number | undefined,
+      school_name: row.schoolName as string | undefined,
+      created_by_name: row.createdByName as string | undefined,
+      updated_by_name: row.updatedByName as string | undefined,
+    }));
 
-    return { success: true, data: students };
+    return { isSuccess: true, message: 'Students fetched successfully', data: students };
   } catch (error) {
-    console.error('Error fetching students:', error);
-    return { success: false, error: 'Failed to fetch students' };
+    // Error logged: Error fetching students
+    return { isSuccess: false, message: 'Failed to fetch students' };
   }
 }
 
 // Get single student by ID
 export async function getStudentByIdAction(id: number): Promise<ActionState<StudentWithDetails>> {
   try {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) {
-      return { success: false, error: 'Unauthorized' };
+    const currentUser = await getCurrentUserAction();
+    if (!currentUser.isSuccess || !currentUser.data) {
+      return { isSuccess: false, message: 'Unauthorized' };
     }
 
     // Get student details
@@ -151,35 +151,35 @@ export async function getStudentByIdAction(id: number): Promise<ActionState<Stud
       { name: '1', value: { longValue: id } }
     ]);
 
-    if (!studentResult.records || studentResult.records.length === 0) {
-      return { success: false, error: 'Student not found' };
+    if (!studentResult || studentResult.length === 0) {
+      return { isSuccess: false, message: 'Student not found' };
     }
 
-    const record = studentResult.records[0];
+    const row = studentResult[0];
     const student: StudentWithDetails = {
-      id: record[0].longValue!,
-      student_id: record[1].stringValue!,
-      first_name: record[2].stringValue!,
-      last_name: record[3].stringValue!,
-      middle_name: record[4].stringValue,
-      date_of_birth: record[5].stringValue ? new Date(record[5].stringValue) : undefined,
-      grade: record[6].stringValue as GradeLevel,
-      school_id: record[7].longValue,
-      status: record[8].stringValue as StudentStatus,
-      email: record[9].stringValue,
-      phone: record[10].stringValue,
-      address: record[11].stringValue,
-      emergency_contact_name: record[12].stringValue,
-      emergency_contact_phone: record[13].stringValue,
-      notes: record[14].stringValue,
-      created_at: new Date(record[15].stringValue!),
-      updated_at: new Date(record[16].stringValue!),
-      created_by: record[17].longValue,
-      updated_by: record[18].longValue,
-      school: record[7].longValue ? {
-        id: record[7].longValue,
-        name: record[19].stringValue!,
-        district: record[20].stringValue,
+      id: row.id as number,
+      student_id: row.studentId as string,
+      first_name: row.firstName as string,
+      last_name: row.lastName as string,
+      middle_name: row.middleName as string | undefined,
+      date_of_birth: row.dateOfBirth ? new Date(row.dateOfBirth as string) : undefined,
+      grade: row.grade as GradeLevel,
+      school_id: row.schoolId as number | undefined,
+      status: row.status as StudentStatus,
+      email: row.email as string | undefined,
+      phone: row.phone as string | undefined,
+      address: row.address as string | undefined,
+      emergency_contact_name: row.emergencyContactName as string | undefined,
+      emergency_contact_phone: row.emergencyContactPhone as string | undefined,
+      notes: row.notes as string | undefined,
+      created_at: new Date(row.createdAt as string),
+      updated_at: new Date(row.updatedAt as string),
+      created_by: row.createdBy as number | undefined,
+      updated_by: row.updatedBy as number | undefined,
+      school: row.schoolId ? {
+        id: row.schoolId as number,
+        name: row.schoolName as string,
+        district: row.schoolDistrict as string | undefined,
         created_at: new Date(),
         updated_at: new Date(),
       } : undefined,
@@ -198,25 +198,25 @@ export async function getStudentByIdAction(id: number): Promise<ActionState<Stud
       { name: '1', value: { longValue: id } }
     ]);
 
-    if (guardiansResult.records) {
-      student.guardians = guardiansResult.records.map(g => ({
-        id: g[0].longValue!,
-        student_id: g[1].longValue!,
-        first_name: g[2].stringValue!,
-        last_name: g[3].stringValue!,
-        relationship: g[4].stringValue,
-        email: g[5].stringValue,
-        phone: g[6].stringValue,
-        is_primary_contact: g[7].booleanValue!,
-        created_at: new Date(g[8].stringValue!),
-        updated_at: new Date(g[9].stringValue!),
+    if (guardiansResult) {
+      student.guardians = guardiansResult.map((g: any) => ({
+        id: g.id as number,
+        student_id: g.studentId as number,
+        first_name: g.firstName as string,
+        last_name: g.lastName as string,
+        relationship: g.relationship as string | undefined,
+        email: g.email as string | undefined,
+        phone: g.phone as string | undefined,
+        is_primary_contact: g.isPrimaryContact as boolean,
+        created_at: new Date(g.createdAt as string),
+        updated_at: new Date(g.updatedAt as string),
       }));
     }
 
-    return { success: true, data: student };
+    return { isSuccess: true, message: 'Student fetched successfully', data: student };
   } catch (error) {
-    console.error('Error fetching student:', error);
-    return { success: false, error: 'Failed to fetch student details' };
+    // Error logged: Error fetching student
+    return { isSuccess: false, message: 'Failed to fetch student details' };
   }
 }
 
@@ -225,23 +225,23 @@ export async function createStudentAction(
   input: CreateStudentInput
 ): Promise<ActionState<Student>> {
   try {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) {
-      return { success: false, error: 'Unauthorized' };
+    const currentUser = await getCurrentUserAction();
+    if (!currentUser.isSuccess || !currentUser.data) {
+      return { isSuccess: false, message: 'Unauthorized' };
     }
 
     // Check if user has permission to create students
-    const hasAccess = await hasToolAccess(currentUser.id, 'students');
+    const hasAccess = await hasToolAccess(currentUser.data.user.id, 'students');
     if (!hasAccess) {
-      return { success: false, error: 'You do not have permission to create students' };
+      return { isSuccess: false, message: 'You do not have permission to create students' };
     }
 
     // Validate input
     const validationResult = createStudentSchema.safeParse(input);
     if (!validationResult.success) {
       return { 
-        success: false, 
-        error: validationResult.error.errors[0].message 
+        isSuccess: false, 
+        message: validationResult.error.errors[0].message 
       };
     }
 
@@ -253,8 +253,8 @@ export async function createStudentAction(
       [{ name: '1', value: { stringValue: data.student_id } }]
     );
 
-    if (existingCheck.records && existingCheck.records.length > 0) {
-      return { success: false, error: 'A student with this ID already exists' };
+    if (existingCheck && existingCheck.length > 0) {
+      return { isSuccess: false, message: 'A student with this ID already exists' };
     }
 
     // Insert new student
@@ -284,43 +284,43 @@ export async function createStudentAction(
       { name: '12', value: data.emergency_contact_name ? { stringValue: data.emergency_contact_name } : { isNull: true } },
       { name: '13', value: data.emergency_contact_phone ? { stringValue: data.emergency_contact_phone } : { isNull: true } },
       { name: '14', value: data.notes ? { stringValue: data.notes } : { isNull: true } },
-      { name: '15', value: { longValue: currentUser.id } },
+      { name: '15', value: { longValue: currentUser.data.user.id } },
     ];
 
     const result = await executeSQL(insertQuery, parameters);
     
-    if (!result.records || result.records.length === 0) {
-      return { success: false, error: 'Failed to create student' };
+    if (!result || result.length === 0) {
+      return { isSuccess: false, message: 'Failed to create student' };
     }
 
-    const record = result.records[0];
+    const row = result[0];
     const newStudent: Student = {
-      id: record[0].longValue!,
-      student_id: record[1].stringValue!,
-      first_name: record[2].stringValue!,
-      last_name: record[3].stringValue!,
-      middle_name: record[4].stringValue,
-      date_of_birth: record[5].stringValue ? new Date(record[5].stringValue) : undefined,
-      grade: record[6].stringValue as GradeLevel,
-      school_id: record[7].longValue,
-      status: record[8].stringValue as StudentStatus,
-      email: record[9].stringValue,
-      phone: record[10].stringValue,
-      address: record[11].stringValue,
-      emergency_contact_name: record[12].stringValue,
-      emergency_contact_phone: record[13].stringValue,
-      notes: record[14].stringValue,
-      created_at: new Date(record[15].stringValue!),
-      updated_at: new Date(record[16].stringValue!),
-      created_by: record[17].longValue,
-      updated_by: record[18].longValue,
+      id: row.id as number,
+      student_id: row.studentId as string,
+      first_name: row.firstName as string,
+      last_name: row.lastName as string,
+      middle_name: row.middleName as string | undefined,
+      date_of_birth: row.dateOfBirth ? new Date(row.dateOfBirth as string) : undefined,
+      grade: row.grade as GradeLevel,
+      school_id: row.schoolId as number | undefined,
+      status: row.status as StudentStatus,
+      email: row.email as string | undefined,
+      phone: row.phone as string | undefined,
+      address: row.address as string | undefined,
+      emergency_contact_name: row.emergencyContactName as string | undefined,
+      emergency_contact_phone: row.emergencyContactPhone as string | undefined,
+      notes: row.notes as string | undefined,
+      created_at: new Date(row.createdAt as string),
+      updated_at: new Date(row.updatedAt as string),
+      created_by: row.createdBy as number | undefined,
+      updated_by: row.updatedBy as number | undefined,
     };
 
     revalidatePath('/students');
-    return { success: true, data: newStudent };
+    return { isSuccess: true, message: 'Student created successfully', data: newStudent };
   } catch (error) {
-    console.error('Error creating student:', error);
-    return { success: false, error: 'Failed to create student' };
+    // Error logged: Error creating student
+    return { isSuccess: false, message: 'Failed to create student' };
   }
 }
 
@@ -329,23 +329,23 @@ export async function updateStudentAction(
   input: Partial<CreateStudentInput> & { id: number }
 ): Promise<ActionState<Student>> {
   try {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) {
-      return { success: false, error: 'Unauthorized' };
+    const currentUser = await getCurrentUserAction();
+    if (!currentUser.isSuccess || !currentUser.data) {
+      return { isSuccess: false, message: 'Unauthorized' };
     }
 
     // Check if user has permission
-    const hasAccess = await hasToolAccess(currentUser.id, 'students');
+    const hasAccess = await hasToolAccess(currentUser.data.user.id, 'students');
     if (!hasAccess) {
-      return { success: false, error: 'You do not have permission to update students' };
+      return { isSuccess: false, message: 'You do not have permission to update students' };
     }
 
     // Validate input
     const validationResult = updateStudentSchema.safeParse(input);
     if (!validationResult.success) {
       return { 
-        success: false, 
-        error: validationResult.error.errors[0].message 
+        isSuccess: false, 
+        message: validationResult.error.errors[0].message 
       };
     }
 
@@ -376,7 +376,7 @@ export async function updateStudentAction(
 
     // Add updated_by
     updateParts.push(`updated_by = $${paramIndex}`);
-    parameters.push({ name: `${paramIndex}`, value: { longValue: currentUser.id } });
+    parameters.push({ name: `${paramIndex}`, value: { longValue: currentUser.data.user.id } });
     paramIndex++;
 
     // Add updated_at
@@ -394,54 +394,54 @@ export async function updateStudentAction(
 
     const result = await executeSQL(updateQuery, parameters);
     
-    if (!result.records || result.records.length === 0) {
-      return { success: false, error: 'Failed to update student' };
+    if (!result || result.length === 0) {
+      return { isSuccess: false, message: 'Failed to update student' };
     }
 
-    const record = result.records[0];
+    const row = result[0];
     const updatedStudent: Student = {
-      id: record[0].longValue!,
-      student_id: record[1].stringValue!,
-      first_name: record[2].stringValue!,
-      last_name: record[3].stringValue!,
-      middle_name: record[4].stringValue,
-      date_of_birth: record[5].stringValue ? new Date(record[5].stringValue) : undefined,
-      grade: record[6].stringValue as GradeLevel,
-      school_id: record[7].longValue,
-      status: record[8].stringValue as StudentStatus,
-      email: record[9].stringValue,
-      phone: record[10].stringValue,
-      address: record[11].stringValue,
-      emergency_contact_name: record[12].stringValue,
-      emergency_contact_phone: record[13].stringValue,
-      notes: record[14].stringValue,
-      created_at: new Date(record[15].stringValue!),
-      updated_at: new Date(record[16].stringValue!),
-      created_by: record[17].longValue,
-      updated_by: record[18].longValue,
+      id: row.id as number,
+      student_id: row.studentId as string,
+      first_name: row.firstName as string,
+      last_name: row.lastName as string,
+      middle_name: row.middleName as string | undefined,
+      date_of_birth: row.dateOfBirth ? new Date(row.dateOfBirth as string) : undefined,
+      grade: row.grade as GradeLevel,
+      school_id: row.schoolId as number | undefined,
+      status: row.status as StudentStatus,
+      email: row.email as string | undefined,
+      phone: row.phone as string | undefined,
+      address: row.address as string | undefined,
+      emergency_contact_name: row.emergencyContactName as string | undefined,
+      emergency_contact_phone: row.emergencyContactPhone as string | undefined,
+      notes: row.notes as string | undefined,
+      created_at: new Date(row.createdAt as string),
+      updated_at: new Date(row.updatedAt as string),
+      created_by: row.createdBy as number | undefined,
+      updated_by: row.updatedBy as number | undefined,
     };
 
     revalidatePath('/students');
     revalidatePath(`/students/${id}`);
-    return { success: true, data: updatedStudent };
+    return { isSuccess: true, message: 'Student updated successfully', data: updatedStudent };
   } catch (error) {
-    console.error('Error updating student:', error);
-    return { success: false, error: 'Failed to update student' };
+    // Error logged: Error updating student
+    return { isSuccess: false, message: 'Failed to update student' };
   }
 }
 
 // Delete student (soft delete by changing status)
 export async function deleteStudentAction(id: number): Promise<ActionState<void>> {
   try {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) {
-      return { success: false, error: 'Unauthorized' };
+    const currentUser = await getCurrentUserAction();
+    if (!currentUser.isSuccess || !currentUser.data) {
+      return { isSuccess: false, message: 'Unauthorized' };
     }
 
     // Check if user has permission
-    const hasAccess = await hasToolAccess(currentUser.id, 'students');
+    const hasAccess = await hasToolAccess(currentUser.data.user.id, 'students');
     if (!hasAccess) {
-      return { success: false, error: 'You do not have permission to delete students' };
+      return { isSuccess: false, message: 'You do not have permission to delete students' };
     }
 
     // Check if student has active interventions
@@ -451,11 +451,11 @@ export async function deleteStudentAction(id: number): Promise<ActionState<void>
       [{ name: '1', value: { longValue: id } }]
     );
 
-    const activeCount = activeInterventionsCheck.records?.[0]?.[0]?.longValue || 0;
+    const activeCount = activeInterventionsCheck?.[0]?.count as number || 0;
     if (activeCount > 0) {
       return { 
-        success: false, 
-        error: 'Cannot delete student with active interventions. Please complete or cancel all interventions first.' 
+        isSuccess: false, 
+        message: 'Cannot delete student with active interventions. Please complete or cancel all interventions first.' 
       };
     }
 
@@ -467,19 +467,19 @@ export async function deleteStudentAction(id: number): Promise<ActionState<void>
            updated_at = CURRENT_TIMESTAMP 
        WHERE id = $2`,
       [
-        { name: '1', value: { longValue: currentUser.id } },
+        { name: '1', value: { longValue: currentUser.data.user.id } },
         { name: '2', value: { longValue: id } }
       ]
     );
 
-    if (!result.numberOfRecordsUpdated || result.numberOfRecordsUpdated === 0) {
-      return { success: false, error: 'Student not found' };
+    if (!result || result.length === 0) {
+      return { isSuccess: false, message: 'Student not found' };
     }
 
     revalidatePath('/students');
-    return { success: true, data: undefined };
+    return { isSuccess: true, message: 'Student deleted successfully', data: undefined };
   } catch (error) {
-    console.error('Error deleting student:', error);
-    return { success: false, error: 'Failed to delete student' };
+    // Error logged: Error deleting student
+    return { isSuccess: false, message: 'Failed to delete student' };
   }
 }

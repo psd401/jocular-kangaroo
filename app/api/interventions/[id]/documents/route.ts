@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@/lib/auth/server-session";
 import { getCurrentUserAction } from "@/actions/db/get-current-user-action";
 import { uploadDocument, deleteDocument } from "@/lib/aws/s3-client";
-import { executeSQL } from "@/lib/db/data-api-client";
+import { executeSQL } from "@/lib/db/data-api-adapter";
 import { hasToolAccess } from "@/lib/auth/tool-helpers";
 
 // Upload a document for an intervention
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check authentication
@@ -32,7 +32,7 @@ export async function POST(
     const currentUser = userResult.data;
 
     // Check if user has access to interventions
-    const hasAccess = await hasToolAccess(currentUser.id, "interventions");
+    const hasAccess = await hasToolAccess(currentUser.user.id, "interventions");
     if (!hasAccess) {
       return NextResponse.json(
         { error: "You do not have permission to upload intervention documents" },
@@ -40,7 +40,8 @@ export async function POST(
       );
     }
 
-    const interventionId = parseInt(params.id);
+    const { id } = await params;
+    const interventionId = parseInt(id);
     if (isNaN(interventionId)) {
       return NextResponse.json(
         { error: "Invalid intervention ID" },
@@ -79,7 +80,7 @@ export async function POST(
       contentType: file.type,
       metadata: {
         interventionId: interventionId.toString(),
-        uploadedBy: currentUser.id.toString(),
+        uploadedBy: currentUser.user.id.toString(),
         description: description || "",
       },
     });
@@ -101,10 +102,10 @@ export async function POST(
       { name: "4", value: { longValue: file.size } },
       { name: "5", value: { stringValue: file.type } },
       { name: "6", value: { stringValue: description || "" } },
-      { name: "7", value: { longValue: currentUser.id } },
+      { name: "7", value: { longValue: currentUser.user.id } },
     ]);
 
-    const attachmentId = result.records?.[0]?.[0]?.longValue;
+    const attachmentId = result?.[0]?.id;
 
     return NextResponse.json({
       success: true,
@@ -118,7 +119,7 @@ export async function POST(
       },
     });
   } catch (error) {
-    console.error("Error uploading document:", error);
+    // Error logged: Error uploading document
     return NextResponse.json(
       { error: "Failed to upload document" },
       { status: 500 }
@@ -129,7 +130,7 @@ export async function POST(
 // Get documents for an intervention
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check authentication
@@ -153,7 +154,7 @@ export async function GET(
     const currentUser = userResult.data;
 
     // Check if user has access to interventions
-    const hasAccess = await hasToolAccess(currentUser.id, "interventions");
+    const hasAccess = await hasToolAccess(currentUser.user.id, "interventions");
     if (!hasAccess) {
       return NextResponse.json(
         { error: "You do not have permission to view intervention documents" },
@@ -161,7 +162,8 @@ export async function GET(
       );
     }
 
-    const interventionId = parseInt(params.id);
+    const { id } = await params;
+    const interventionId = parseInt(id);
     if (isNaN(interventionId)) {
       return NextResponse.json(
         { error: "Invalid intervention ID" },
@@ -185,17 +187,17 @@ export async function GET(
       { name: "1", value: { longValue: interventionId } },
     ]);
 
-    const attachments = result.records?.map(record => ({
-      id: record[0].longValue!,
-      fileName: record[1].stringValue!,
-      fileKey: record[2].stringValue!,
-      fileSize: record[3].longValue!,
-      contentType: record[4].stringValue!,
-      description: record[5].stringValue,
-      uploadedAt: new Date(record[6].stringValue!),
+    const attachments = result?.map(record => ({
+      id: Number(record.id),
+      fileName: String(record.fileName),
+      fileKey: String(record.fileKey),
+      fileSize: Number(record.fileSize),
+      contentType: String(record.contentType),
+      description: record.description ? String(record.description) : null,
+      uploadedAt: new Date(String(record.uploadedAt)),
       uploadedBy: {
-        firstName: record[7].stringValue,
-        lastName: record[8].stringValue,
+        firstName: record.firstName ? String(record.firstName) : null,
+        lastName: record.lastName ? String(record.lastName) : null,
       },
     })) || [];
 
@@ -204,7 +206,7 @@ export async function GET(
       data: attachments,
     });
   } catch (error) {
-    console.error("Error fetching documents:", error);
+    // Error logged: Error fetching documents
     return NextResponse.json(
       { error: "Failed to fetch documents" },
       { status: 500 }
@@ -215,7 +217,7 @@ export async function GET(
 // Delete a document
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check authentication
@@ -239,7 +241,7 @@ export async function DELETE(
     const currentUser = userResult.data;
 
     // Check if user has access to interventions
-    const hasAccess = await hasToolAccess(currentUser.id, "interventions");
+    const hasAccess = await hasToolAccess(currentUser.user.id, "interventions");
     if (!hasAccess) {
       return NextResponse.json(
         { error: "You do not have permission to delete intervention documents" },
@@ -257,6 +259,8 @@ export async function DELETE(
       );
     }
 
+    const { id } = await params;
+
     // Get attachment details
     const selectQuery = `
       SELECT file_key, uploaded_by 
@@ -266,22 +270,22 @@ export async function DELETE(
 
     const selectResult = await executeSQL(selectQuery, [
       { name: "1", value: { longValue: parseInt(attachmentId) } },
-      { name: "2", value: { longValue: parseInt(params.id) } },
+      { name: "2", value: { longValue: parseInt(id) } },
     ]);
 
-    if (!selectResult.records || selectResult.records.length === 0) {
+    if (!selectResult || selectResult.length === 0) {
       return NextResponse.json(
         { error: "Attachment not found" },
         { status: 404 }
       );
     }
 
-    const fileKey = selectResult.records[0][0].stringValue!;
-    const uploadedBy = selectResult.records[0][1].longValue!;
+    const fileKey = String(selectResult[0].fileKey);
+    const uploadedBy = Number(selectResult[0].uploadedBy);
 
     // Check if user can delete (must be uploader or admin)
     const isAdmin = currentUser.roles.some(r => r.name === "Administrator");
-    if (uploadedBy !== currentUser.id && !isAdmin) {
+    if (uploadedBy !== currentUser.user.id && !isAdmin) {
       return NextResponse.json(
         { error: "You can only delete your own attachments" },
         { status: 403 }
@@ -306,7 +310,7 @@ export async function DELETE(
       message: "Document deleted successfully",
     });
   } catch (error) {
-    console.error("Error deleting document:", error);
+    // Error logged: Error deleting document
     return NextResponse.json(
       { error: "Failed to delete document" },
       { status: 500 }

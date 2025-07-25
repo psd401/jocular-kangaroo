@@ -151,7 +151,7 @@ export interface InterventionWithDetails extends Intervention {
   assigned_to_user?: { id: number; first_name: string; last_name: string };
   team_members?: InterventionTeamMember[];
   sessions?: InterventionSession[];
-  goals?: InterventionGoal[];
+  goalDetails?: InterventionGoal[];
 }
 
 // Form types for creating/updating records

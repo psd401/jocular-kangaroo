@@ -15,9 +15,9 @@ export default async function NewInterventionPage() {
     getUsersAction(),
   ]);
 
-  const students = studentsResult.success ? studentsResult.data : [];
-  const programs = programsResult.success ? programsResult.data : [];
-  const users = usersResult.success ? usersResult.data : [];
+  const students = studentsResult.isSuccess ? studentsResult.data || [] : [];
+  const programs = programsResult.isSuccess ? programsResult.data || [] : [];
+  const users = usersResult.isSuccess ? usersResult.data || [] : [];
 
   return (
     <div className="space-y-6 p-8 pt-6 max-w-4xl mx-auto">
