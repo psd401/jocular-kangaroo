@@ -1,11 +1,9 @@
 import { notFound } from "next/navigation"
 import { executeSQL } from "@/lib/db/data-api-adapter"
 import { Suspense } from "react"
-import Image from "next/image"
 import Link from "next/link"
 import logger from "@/lib/logger"
 import { extractRDSString, ensureRDSNumber, toReactKey, ensureRDSString, type RDSFieldValue } from "@/lib/type-helpers"
-import type { SelectAssistantArchitect } from "@/types/db-types"
 
 interface PageProps {
   params: Promise<{ pageId: string }>
@@ -42,32 +40,6 @@ export default async function PublicPage({ params }: PageProps) {
     { name: 'parentId', value: { longValue: ensureRDSNumber(pageItem.id as RDSFieldValue) } }
   ]);
 
-  // Helper to extract toolId from a link like /tools/assistant-architect/{toolId}
-  function extractAssistantId(link: RDSFieldValue): number | null {
-    const linkStr = extractRDSString(link)
-    if (!linkStr) return null
-    const match = linkStr.match(/\/tools\/assistant-architect\/(\d+)/)
-    return match ? parseInt(match[1], 10) : null
-  }
-
-  // For each child, try to extract assistant/tool id from the link
-  const childAssistantIds = childItems
-    .map((child) => extractAssistantId(child.link as RDSFieldValue))
-    .filter((id): id is number => id !== null && !isNaN(id))
-
-  let assistants: Record<number, SelectAssistantArchitect> = {}
-  if (childAssistantIds.length > 0) {
-    // Build the IN clause for SQL with integer IDs
-    const placeholders = childAssistantIds.map((_, i) => `:id${i}`).join(', ');
-    const assistantsSql = `SELECT * FROM assistant_architects WHERE id IN (${placeholders})`;
-    const assistantParams = childAssistantIds.map((id, i) => ({
-      name: `id${i}`,
-      value: { longValue: id }
-    }));
-    
-    const assistantRows = await executeSQL(assistantsSql, assistantParams);
-    assistants = Object.fromEntries(assistantRows.map((a) => [ensureRDSNumber(a.id as unknown as RDSFieldValue), a as unknown as SelectAssistantArchitect]))
-  }
 
   return (
     <>
@@ -81,8 +53,6 @@ export default async function PublicPage({ params }: PageProps) {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
             {childItems.map((child) => {
-              const assistantId = extractAssistantId(child.link as unknown as RDSFieldValue)
-              const assistant = assistantId ? assistants[assistantId] : null
               const href = extractRDSString(child.link as unknown as RDSFieldValue) || "#"
               return (
                 <Link
@@ -91,25 +61,15 @@ export default async function PublicPage({ params }: PageProps) {
                   className="block rounded-lg border bg-card shadow-sm hover:shadow-md transition p-6 group focus-visible:ring-2 focus-visible:ring-primary"
                 >
                   <div className="flex items-start">
-                    {assistant && assistant.imagePath ? (
-                      <Image
-                        src={`/assistant_logos/${assistant.imagePath}`}
-                        alt={assistant.name}
-                        width={64}
-                        height={64}
-                        className="w-16 h-16 min-w-[64px] min-h-[64px] rounded-lg object-cover flex-shrink-0"
-                      />
-                    ) : (
-                      <span className="text-3xl text-muted-foreground block">
-                        <span className={`i-lucide:${extractRDSString(child.icon as unknown as RDSFieldValue) || 'file'}`} />
-                      </span>
-                    )}
+                    <span className="text-3xl text-muted-foreground block">
+                      <span className={`i-lucide:${extractRDSString(child.icon as unknown as RDSFieldValue) || 'file'}`} />
+                    </span>
                     <div className="ml-4">
                       <div className="font-semibold text-lg">
-                        {assistant ? ensureRDSString(assistant.name) : ensureRDSString(child.label as unknown as RDSFieldValue)}
+                        {ensureRDSString(child.label as unknown as RDSFieldValue)}
                       </div>
                       <div className="text-muted-foreground text-sm mt-1">
-                        {assistant ? extractRDSString(assistant.description) : extractRDSString(child.description as unknown as RDSFieldValue)}
+                        {extractRDSString(child.description as unknown as RDSFieldValue)}
                       </div>
                     </div>
                   </div>

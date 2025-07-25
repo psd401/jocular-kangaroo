@@ -44,29 +44,6 @@ export const updateRoleSchema = z.object({
   description: z.string().max(500).optional()
 });
 
-// AI Model schemas
-export const createModelSchema = z.object({
-  name: z.string().min(1, 'Model name is required').max(100),
-  modelId: z.string().min(1, 'Model ID is required').max(100),
-  provider: z.string().min(1, 'Provider is required').max(50),
-  description: z.string().max(500).optional(),
-  capabilities: z.array(z.string()).optional(),
-  maxTokens: z.string().regex(/^\d+$/).optional(),
-  active: z.boolean().optional(),
-  chatEnabled: z.boolean().optional()
-});
-
-export const updateModelSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
-  modelId: z.string().min(1).max(100).optional(),
-  provider: z.string().min(1).max(50).optional(),
-  description: z.string().max(500).optional(),
-  capabilities: z.array(z.string()).optional(),
-  maxTokens: z.string().regex(/^\d+$/).optional(),
-  active: z.boolean().optional(),
-  chatEnabled: z.boolean().optional()
-});
-
 // Navigation schemas
 export const createNavigationSchema = z.object({
   label: z.string().min(1, 'Label is required').max(100),
@@ -102,62 +79,11 @@ export const createSettingsSchema = z.object({
 
 export const updateSettingsSchema = createSettingsSchema.partial();
 
-// Chat schemas
-export const createChatMessageSchema = z.object({
-  message: z.string().min(1, 'Message is required').max(10000),
-  conversationId: z.string().optional(),
-  documentId: z.string().optional(),
-  parentMessageId: z.string().optional()
-});
-
-export const createConversationSchema = z.object({
-  name: z.string().min(1, 'Name is required').max(255),
-  systemPrompt: z.string().max(2000).optional(),
-  modelId: z.number().int().positive().optional()
-});
-
-export const updateConversationSchema = z.object({
-  name: z.string().min(1).max(255).optional()
-});
-
-// Document schemas
-// Note: File validation is handled at runtime in the route handler
-// since File class is not available during SSR/build
-export const uploadDocumentSchema = z.object({
-  file: z.any() // Runtime validation is done in the route handler
-});
-
 // Job schemas
 export const updateJobSchema = z.object({
   status: z.enum(['queued', 'running', 'completed', 'failed']).optional(),
   output: z.any().optional(),
   error: z.string().optional()
-});
-
-// Assistant Architect schemas
-export const createAssistantSchema = z.object({
-  name: z.string().min(1, 'Name is required').max(255),
-  description: z.string().max(1000).optional(),
-  imagePath: z.string().max(500).optional()
-});
-
-export const updateAssistantSchema = z.object({
-  name: z.string().min(1).max(255).optional(),
-  description: z.string().max(1000).optional(),
-  status: z.enum(['draft', 'published', 'archived']).optional(),
-  imagePath: z.string().max(500).optional()
-});
-
-// Tool input field schemas
-export const createToolInputFieldSchema = z.object({
-  name: z.string().min(1, 'Name is required').max(100),
-  label: z.string().max(200).optional(),
-  type: z.enum(['text', 'number', 'select', 'boolean', 'date']),
-  position: z.number().int().min(0).optional(),
-  options: z.array(z.object({
-    label: z.string(),
-    value: z.string()
-  })).optional()
 });
 
 // Generic ID parameter schema for route params
@@ -175,10 +101,6 @@ export const roleIdParamSchema = z.object({
 
 export const toolIdParamSchema = z.object({
   toolId: z.string()
-});
-
-export const conversationIdParamSchema = z.object({
-  conversationId: z.string()
 });
 
 /**

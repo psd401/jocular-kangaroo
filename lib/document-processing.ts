@@ -98,58 +98,6 @@ export async function extractTextFromDocument(
   }
 }
 
-/**
- * Chunk document text into segments
- */
-export function chunkText(text: string, maxChunkSize: number = 1000): string[] {
-  const paragraphs = text.split(/\n\s*\n/);
-  const chunks: string[] = [];
-  let currentChunk = '';
-
-  for (const paragraph of paragraphs) {
-    // If adding this paragraph exceeds the chunk size, save current chunk and start a new one
-    if (currentChunk.length + paragraph.length > maxChunkSize && currentChunk.length > 0) {
-      chunks.push(currentChunk.trim());
-      currentChunk = '';
-    }
-
-    // If paragraph itself exceeds chunk size, split it into sentences
-    if (paragraph.length > maxChunkSize) {
-      const sentences = paragraph.match(/[^.!?]+[.!?]+/g) || [paragraph];
-      for (const sentence of sentences) {
-        if (currentChunk.length + sentence.length > maxChunkSize && currentChunk.length > 0) {
-          chunks.push(currentChunk.trim());
-          currentChunk = '';
-        }
-        
-        // Handle case where a single sentence is longer than max chunk size
-        if (sentence.length > maxChunkSize) {
-          // Split long sentence by words to fit within chunk size
-          const words = sentence.split(' ');
-          for (const word of words) {
-            if (currentChunk.length + word.length + 1 > maxChunkSize) {
-              chunks.push(currentChunk.trim());
-              currentChunk = word + ' ';
-            } else {
-              currentChunk += word + ' ';
-            }
-          }
-        } else {
-          currentChunk += sentence + ' ';
-        }
-      }
-    } else {
-      currentChunk += paragraph + '\n\n';
-    }
-  }
-
-  // Add the last chunk if not empty
-  if (currentChunk.trim().length > 0) {
-    chunks.push(currentChunk.trim());
-  }
-
-  return chunks;
-}
 
 /**
  * Get file type from file name

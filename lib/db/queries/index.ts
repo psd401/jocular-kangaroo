@@ -1,1 +1,1 @@
-export * from './documents'; 
+// Queries index file - currently empty as document queries were removed 
