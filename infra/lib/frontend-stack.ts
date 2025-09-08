@@ -67,8 +67,8 @@ export class FrontendStack extends cdk.Stack {
     // Create SSR Compute Role
     const ssrComputeRole = new iam.Role(this, 'SSRComputeRole', {
       assumedBy: new iam.ServicePrincipal('amplify.amazonaws.com'),
-      description: `SSR Compute role for Amplify app ${props.environment}`,
-      roleName: `amplify-ssr-compute-${props.environment}-${cdk.Stack.of(this).account}`,
+      description: `SSR Compute role for Jockular Kangaroo ${props.environment}`,
+      roleName: `jockular-kangaroo-ssr-compute-${props.environment}-${cdk.Stack.of(this).account}`,
       inlinePolicies: {
         'RDSDataAPIAccess': new iam.PolicyDocument({
           statements: [
@@ -99,7 +99,8 @@ export class FrontendStack extends cdk.Stack {
     // Create service role
     const amplifyRole = new iam.Role(this, 'AmplifyServiceRole', {
       assumedBy: new iam.ServicePrincipal('amplify.amazonaws.com'),
-      description: `Service role for Amplify app ${props.environment}`,
+      description: `Service role for Jockular Kangaroo ${props.environment}`,
+      roleName: `jockular-kangaroo-amplify-service-${props.environment}-${cdk.Stack.of(this).account}`,
       managedPolicies: [
         iam.ManagedPolicy.fromAwsManagedPolicyName('AdministratorAccess-Amplify')
       ]
@@ -179,13 +180,13 @@ export class FrontendStack extends cdk.Stack {
       }] 
     });
 
-    // Configure AWS WAF for Amplify
+    // Configure AWS WAF for Amplify - Simplified configuration
     const webAcl = new wafv2.CfnWebACL(this, 'AmplifyWAF', {
       scope: 'CLOUDFRONT',
       defaultAction: { allow: {} },
-      description: `WAF for AIStudio ${props.environment} environment`,
+      description: `WAF for Jockular Kangaroo ${props.environment} environment`,
       rules: [
-        // Rate limiting rule
+        // Basic rate limiting rule
         {
           name: 'RateLimitRule',
           priority: 1,
@@ -195,107 +196,11 @@ export class FrontendStack extends cdk.Stack {
               aggregateKeyType: 'IP'
             }
           },
-          action: { 
-            block: {
-              customResponse: {
-                responseCode: 429,
-                customResponseBodyKey: 'RateLimitBody'
-              }
-            }
-          },
+          action: { block: {} },
           visibilityConfig: {
             sampledRequestsEnabled: true,
             cloudWatchMetricsEnabled: true,
             metricName: 'RateLimitRule'
-          }
-        },
-        // AWS Managed Core Rule Set
-        {
-          name: 'AWSManagedRulesCommonRuleSet',
-          priority: 2,
-          overrideAction: { none: {} },
-          statement: {
-            managedRuleGroupStatement: {
-              vendorName: 'AWS',
-              name: 'AWSManagedRulesCommonRuleSet',
-              excludedRules: [
-                // Exclude rules that might block legitimate AI/document operations
-                { name: 'SizeRestrictions_BODY' }, // Allow larger payloads for documents
-                { name: 'GenericRFI_BODY' } // May trigger on AI prompts
-              ]
-            }
-          },
-          visibilityConfig: {
-            sampledRequestsEnabled: true,
-            cloudWatchMetricsEnabled: true,
-            metricName: 'CommonRuleSet'
-          }
-        },
-        // Known bad inputs
-        {
-          name: 'AWSManagedRulesKnownBadInputsRuleSet',
-          priority: 3,
-          overrideAction: { none: {} },
-          statement: {
-            managedRuleGroupStatement: {
-              vendorName: 'AWS',
-              name: 'AWSManagedRulesKnownBadInputsRuleSet'
-            }
-          },
-          visibilityConfig: {
-            sampledRequestsEnabled: true,
-            cloudWatchMetricsEnabled: true,
-            metricName: 'KnownBadInputs'
-          }
-        },
-        // SQL injection protection
-        {
-          name: 'AWSManagedRulesSQLiRuleSet',
-          priority: 4,
-          overrideAction: { none: {} },
-          statement: {
-            managedRuleGroupStatement: {
-              vendorName: 'AWS',
-              name: 'AWSManagedRulesSQLiRuleSet'
-            }
-          },
-          visibilityConfig: {
-            sampledRequestsEnabled: true,
-            cloudWatchMetricsEnabled: true,
-            metricName: 'SQLiRuleSet'
-          }
-        },
-        // Custom rule for large file uploads
-        {
-          name: 'AllowLargeUploads',
-          priority: 5,
-          statement: {
-            andStatement: {
-              statements: [
-                {
-                  byteMatchStatement: {
-                    searchString: '/api/documents/upload',
-                    fieldToMatch: { uriPath: {} },
-                    textTransformations: [{ priority: 0, type: 'NONE' }],
-                    positionalConstraint: 'CONTAINS'
-                  }
-                },
-                {
-                  sizeConstraintStatement: {
-                    fieldToMatch: { body: {} },
-                    comparisonOperator: 'LE',
-                    size: 26214400, // 25MB in bytes
-                    textTransformations: [{ priority: 0, type: 'NONE' }]
-                  }
-                }
-              ]
-            }
-          },
-          action: { allow: {} },
-          visibilityConfig: {
-            sampledRequestsEnabled: true,
-            cloudWatchMetricsEnabled: true,
-            metricName: 'AllowLargeUploads'
           }
         }
       ],
@@ -303,12 +208,6 @@ export class FrontendStack extends cdk.Stack {
         sampledRequestsEnabled: true,
         cloudWatchMetricsEnabled: true,
         metricName: `AmplifyWAF-${props.environment}`
-      },
-      customResponseBodies: {
-        RateLimitBody: {
-          contentType: 'APPLICATION_JSON',
-          content: '{"error": "Too many requests. Please try again later."}'
-        }
       }
     });
 
@@ -320,24 +219,24 @@ export class FrontendStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'WAFArn', {
       value: webAcl.attrArn,
       description: 'WAF WebACL ARN for Amplify app',
-      exportName: `${props.environment}-WAFArn`
+      exportName: `JockularKangaroo-${props.environment}-WAFArn`
     });
 
     // Outputs
     new cdk.CfnOutput(this, 'AmplifyAppId', {
       value: amplifyApp.appId,
       description: 'Amplify App ID',
-      exportName: `${props.environment}-AmplifyAppId`,
+      exportName: `JockularKangaroo-${props.environment}-AmplifyAppId`,
     });
     new cdk.CfnOutput(this, 'AmplifyDefaultDomain', {
       value: amplifyApp.defaultDomain,
       description: 'Amplify Default Domain',
-      exportName: `${props.environment}-AmplifyDefaultDomain`,
+      exportName: `JockularKangaroo-${props.environment}-AmplifyDefaultDomain`,
     });
     new cdk.CfnOutput(this, 'SSRComputeRoleArn', {
       value: ssrComputeRole.roleArn,
       description: 'SSR Compute Role ARN',
-      exportName: `${props.environment}-SSRComputeRoleArn`,
+      exportName: `JockularKangaroo-${props.environment}-SSRComputeRoleArn`,
     });
 
     // Environment variables instructions

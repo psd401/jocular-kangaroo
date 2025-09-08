@@ -22,7 +22,7 @@ const ENV_VARS: EnvVar[] = [
   // Database
   { name: 'RDS_RESOURCE_ARN', required: true, description: 'AWS RDS cluster ARN' },
   { name: 'RDS_SECRET_ARN', required: true, description: 'AWS Secrets Manager ARN for RDS' },
-  { name: 'RDS_DATABASE_NAME', required: false, description: 'Database name (defaults to aistudio)' },
+  { name: 'RDS_DATABASE_NAME', required: true, description: 'Database name' },
   
   // AWS Configuration
   { name: 'NEXT_PUBLIC_AWS_REGION', required: true, description: 'AWS region' },

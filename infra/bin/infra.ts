@@ -11,8 +11,8 @@ const app = new cdk.App();
 
 // Standard tags for cost allocation
 const standardTags = {
-  Project: 'AIStudio',
-  Owner: 'TSD Engineering',
+  Project: 'JockularKangaroo',
+  Owner: 'Peninsula SD',
 };
 
 // Get baseDomain from context first
@@ -40,25 +40,25 @@ function getCallbackAndLogoutUrls(environment: string, baseDomain?: string): { c
       ].filter(Boolean) as string[],
     };
   } else {
+    // For production, include at least a placeholder URL if no baseDomain is provided
+    const prodCallbackUrls = [
+      baseDomain ? `https://prod.${baseDomain}/` : 'https://placeholder.example.com/',
+      baseDomain ? `https://prod.${baseDomain}/api/auth/callback/cognito` : 'https://placeholder.example.com/api/auth/callback/cognito',
+    ];
+    const prodLogoutUrls = [
+      baseDomain ? `https://prod.${baseDomain}/` : 'https://placeholder.example.com/',
+      baseDomain ? `https://prod.${baseDomain}/oauth2/idpresponse` : 'https://placeholder.example.com/oauth2/idpresponse',
+    ];
+    
     return {
-      callbackUrls: [
-        baseDomain ? `https://prod.${baseDomain}/` : undefined,
-        baseDomain ? `https://dev.${baseDomain}/` : undefined,
-        baseDomain ? `https://prod.${baseDomain}/api/auth/callback/cognito` : undefined,
-        baseDomain ? `https://dev.${baseDomain}/api/auth/callback/cognito` : undefined,
-      ].filter(Boolean) as string[],
-      logoutUrls: [
-        baseDomain ? `https://prod.${baseDomain}/` : undefined,
-        baseDomain ? `https://dev.${baseDomain}/` : undefined,
-        baseDomain ? `https://prod.${baseDomain}/oauth2/idpresponse` : undefined,
-        baseDomain ? `https://dev.${baseDomain}/oauth2/idpresponse` : undefined,
-      ].filter(Boolean) as string[],
+      callbackUrls: prodCallbackUrls,
+      logoutUrls: prodLogoutUrls,
     };
   }
 }
 
 // Dev environment
-const devDbStack = new DatabaseStack(app, 'AIStudio-DatabaseStack-Dev', {
+const devDbStack = new DatabaseStack(app, 'JockularKangaroo-DatabaseStack-Dev', {
   environment: 'dev',
   env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
 });
@@ -66,9 +66,9 @@ cdk.Tags.of(devDbStack).add('Environment', 'Dev');
 Object.entries(standardTags).forEach(([key, value]) => cdk.Tags.of(devDbStack).add(key, value));
 
 const devUrls = getCallbackAndLogoutUrls('dev', baseDomain);
-const devAuthStack = new AuthStack(app, 'AIStudio-AuthStack-Dev', {
+const devAuthStack = new AuthStack(app, 'JockularKangaroo-AuthStack-Dev', {
   environment: 'dev',
-  googleClientSecret: SecretValue.secretsManager('aistudio-dev-google-oauth', { jsonField: 'clientSecret' }),
+  googleClientSecret: SecretValue.secretsManager('jockular-kangaroo-dev-google-oauth', { jsonField: 'clientSecret' }),
   callbackUrls: devUrls.callbackUrls,
   logoutUrls: devUrls.logoutUrls,
   env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
@@ -76,7 +76,7 @@ const devAuthStack = new AuthStack(app, 'AIStudio-AuthStack-Dev', {
 cdk.Tags.of(devAuthStack).add('Environment', 'Dev');
 Object.entries(standardTags).forEach(([key, value]) => cdk.Tags.of(devAuthStack).add(key, value));
 
-const devStorageStack = new StorageStack(app, 'AIStudio-StorageStack-Dev', {
+const devStorageStack = new StorageStack(app, 'JockularKangaroo-StorageStack-Dev', {
   environment: 'dev',
   env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
 });
@@ -85,7 +85,7 @@ Object.entries(standardTags).forEach(([key, value]) => cdk.Tags.of(devStorageSta
 
 // Remove the isSynthOrDeploy conditional and always instantiate FrontendStack(s) if baseDomain is present
 if (baseDomain) {
-  const devFrontendStack = new FrontendStack(app, 'AIStudio-FrontendStack-Dev', {
+  const devFrontendStack = new FrontendStack(app, 'JockularKangaroo-FrontendStack-Dev', {
     environment: 'dev',
     githubToken: SecretValue.secretsManager('jockular-kangaroo-github-token'),
     baseDomain,
@@ -94,7 +94,7 @@ if (baseDomain) {
   cdk.Tags.of(devFrontendStack).add('Environment', 'Dev');
   Object.entries(standardTags).forEach(([key, value]) => cdk.Tags.of(devFrontendStack).add(key, value));
 
-  const prodFrontendStack = new FrontendStack(app, 'AIStudio-FrontendStack-Prod', {
+  const prodFrontendStack = new FrontendStack(app, 'JockularKangaroo-FrontendStack-Prod', {
     environment: 'prod',
     githubToken: SecretValue.secretsManager('jockular-kangaroo-github-token'),
     baseDomain,
@@ -104,12 +104,12 @@ if (baseDomain) {
   Object.entries(standardTags).forEach(([key, value]) => cdk.Tags.of(prodFrontendStack).add(key, value));
 
   // To deploy, use:
-  // cdk deploy AIStudio-FrontendStack-Dev --context baseDomain=yourdomain.com
-  // cdk deploy AIStudio-FrontendStack-Prod --context baseDomain=yourdomain.com
+  // cdk deploy JockularKangaroo-FrontendStack-Dev --context baseDomain=yourdomain.com
+  // cdk deploy JockularKangaroo-FrontendStack-Prod --context baseDomain=yourdomain.com
 }
 
 // Prod environment
-const prodDbStack = new DatabaseStack(app, 'AIStudio-DatabaseStack-Prod', {
+const prodDbStack = new DatabaseStack(app, 'JockularKangaroo-DatabaseStack-Prod', {
   environment: 'prod',
   env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
 });
@@ -117,9 +117,9 @@ cdk.Tags.of(prodDbStack).add('Environment', 'Prod');
 Object.entries(standardTags).forEach(([key, value]) => cdk.Tags.of(prodDbStack).add(key, value));
 
 const prodUrls = getCallbackAndLogoutUrls('prod', baseDomain);
-const prodAuthStack = new AuthStack(app, 'AIStudio-AuthStack-Prod', {
+const prodAuthStack = new AuthStack(app, 'JockularKangaroo-AuthStack-Prod', {
   environment: 'prod',
-  googleClientSecret: SecretValue.secretsManager('aistudio-prod-google-oauth', { jsonField: 'clientSecret' }),
+  googleClientSecret: SecretValue.secretsManager('jockular-kangaroo-prod-google-oauth', { jsonField: 'clientSecret' }),
   callbackUrls: prodUrls.callbackUrls,
   logoutUrls: prodUrls.logoutUrls,
   env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
@@ -127,14 +127,14 @@ const prodAuthStack = new AuthStack(app, 'AIStudio-AuthStack-Prod', {
 cdk.Tags.of(prodAuthStack).add('Environment', 'Prod');
 Object.entries(standardTags).forEach(([key, value]) => cdk.Tags.of(prodAuthStack).add(key, value));
 
-const prodStorageStack = new StorageStack(app, 'AIStudio-StorageStack-Prod', {
+const prodStorageStack = new StorageStack(app, 'JockularKangaroo-StorageStack-Prod', {
   environment: 'prod',
   env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
 });
 cdk.Tags.of(prodStorageStack).add('Environment', 'Prod');
 Object.entries(standardTags).forEach(([key, value]) => cdk.Tags.of(prodStorageStack).add(key, value));
 
-new InfraStack(app, 'AIStudio-InfraStack', {
+new InfraStack(app, 'JockularKangaroo-InfraStack', {
   /* If you don't specify 'env', this stack will be environment-agnostic.
    * Account/Region-dependent features and context lookups will not work,
    * but a single synthesized template can be deployed anywhere. */

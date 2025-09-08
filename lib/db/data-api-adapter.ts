@@ -111,7 +111,7 @@ function getDataApiConfig() {
     secretArn: process.env.RDS_SECRET_ARN,
     // Database name is included in the secret, but we can specify it explicitly
     // The Data API will use the database from the secret if not specified
-    database: 'aistudio'
+    database: process.env.RDS_DATABASE_NAME!
   };
 }
 
@@ -427,6 +427,10 @@ export async function createUser(userData: UserData) {
   const query = `
     INSERT INTO users (cognito_sub, email, first_name, created_at, updated_at)
     VALUES (:cognitoSub, :email, :firstName, NOW(), NOW())
+    ON CONFLICT (cognito_sub) DO UPDATE SET
+      email = EXCLUDED.email,
+      first_name = EXCLUDED.first_name,
+      updated_at = NOW()
     RETURNING id, cognito_sub, email, first_name, last_name, created_at, updated_at
   `;
 

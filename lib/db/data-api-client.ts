@@ -24,7 +24,7 @@ export async function executeStatement(
   const defaultConfig = {
     resourceArn: process.env.RDS_RESOURCE_ARN!,
     secretArn: process.env.RDS_SECRET_ARN!,
-    database: process.env.RDS_DATABASE_NAME || 'aistudio'
+    database: process.env.RDS_DATABASE_NAME!
   };
 
   const command = new ExecuteStatementCommand({

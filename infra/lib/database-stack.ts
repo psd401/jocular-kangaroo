@@ -176,41 +176,43 @@ export class DatabaseStack extends cdk.Stack {
         Environment: props.environment,
         // Add a timestamp to force update on stack updates if needed
         Timestamp: new Date().toISOString(),
+        // Force execution after Lambda code fix
+        ForceRun: '2025-09-08-23:45-recordmigration-fix',
       },
     });
 
     // Ensure the database is created before initialization
     dbInit.node.addDependency(cluster);
 
-    // Outputs
+    // Outputs - prefixed with JockularKangaroo to avoid conflicts
     new cdk.CfnOutput(this, 'RdsProxyEndpoint', {
       value: proxy.endpoint,
       description: 'RDS Proxy endpoint',
-      exportName: `${props.environment}-RdsProxyEndpoint`,
+      exportName: `JockularKangaroo-${props.environment}-RdsProxyEndpoint`,
     });
     
     new cdk.CfnOutput(this, 'ClusterEndpoint', {
       value: cluster.clusterEndpoint.hostname,
       description: 'Aurora cluster writer endpoint',
-      exportName: `${props.environment}-ClusterEndpoint`,
+      exportName: `JockularKangaroo-${props.environment}-ClusterEndpoint`,
     });
     
     new cdk.CfnOutput(this, 'ClusterReaderEndpoint', {
       value: cluster.clusterReadEndpoint.hostname,
       description: 'Aurora cluster reader endpoint',
-      exportName: `${props.environment}-ClusterReaderEndpoint`,
+      exportName: `JockularKangaroo-${props.environment}-ClusterReaderEndpoint`,
     });
     
     new cdk.CfnOutput(this, 'ClusterArn', {
       value: cluster.clusterArn,
       description: 'Aurora cluster ARN for Data API',
-      exportName: `${props.environment}-ClusterArn`,
+      exportName: `JockularKangaroo-${props.environment}-ClusterArn`,
     });
     
     new cdk.CfnOutput(this, 'DbSecretArn', {
       value: dbSecret.secretArn,
       description: 'Secrets Manager ARN for DB credentials',
-      exportName: `${props.environment}-DbSecretArn`,
+      exportName: `JockularKangaroo-${props.environment}-DbSecretArn`,
     });
   }
 }
