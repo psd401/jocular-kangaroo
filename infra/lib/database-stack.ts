@@ -109,6 +109,13 @@ export class DatabaseStack extends cdk.Stack {
       debugLogging: props.environment !== 'prod',
     });
 
+    // Create log group for database initialization Lambda
+    const dbInitLambdaLogGroup = new logs.LogGroup(this, 'DbInitLambdaLogGroup', {
+      logGroupName: `/aws/lambda/JockularKangaroo-${props.environment}-DbInitLambda`,
+      retention: logs.RetentionDays.ONE_WEEK,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
     // Database initialization Lambda
     // Note: Lambda doesn't need to be in VPC since it uses RDS Data API
     const dbInitLambda = new lambda.Function(this, 'DbInitLambda', {
@@ -153,17 +160,24 @@ export class DatabaseStack extends cdk.Stack {
       environment: {
         NODE_OPTIONS: '--enable-source-maps',
       },
-      logRetention: logs.RetentionDays.ONE_WEEK,
+      logGroup: dbInitLambdaLogGroup,
     });
 
     // Grant the Lambda permission to use the Data API
     cluster.grantDataApiAccess(dbInitLambda);
     dbSecret.grantRead(dbInitLambda);
 
+    // Create log group for Custom Resource Provider
+    const dbInitProviderLogGroup = new logs.LogGroup(this, 'DbInitProviderLogGroup', {
+      logGroupName: `/aws/lambda/JockularKangaroo-${props.environment}-DbInitProvider`,
+      retention: logs.RetentionDays.ONE_WEEK,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
     // Create Custom Resource Provider
     const dbInitProvider = new cr.Provider(this, 'DbInitProvider', {
       onEventHandler: dbInitLambda,
-      logRetention: logs.RetentionDays.ONE_WEEK,
+      logGroup: dbInitProviderLogGroup,
     });
 
     // Create Custom Resource

@@ -12,15 +12,11 @@ export const config = {
           scopes: ["openid", "email", "profile"],
           redirectSignIn: [
             "http://localhost:3000/",
-            "https://dev.jockularkangaroo.psd401.ai/",
-            "http://localhost:3000",
-            "https://dev.jockularkangaroo.psd401.ai"
+            ...(process.env.AUTH_URL ? [`${process.env.AUTH_URL}/`, process.env.AUTH_URL] : [])
           ],
           redirectSignOut: [
             "http://localhost:3000/",
-            "https://dev.jockularkangaroo.psd401.ai/",
-            "http://localhost:3000",
-            "https://dev.jockularkangaroo.psd401.ai"
+            ...(process.env.AUTH_URL ? [`${process.env.AUTH_URL}/`, process.env.AUTH_URL] : [])
           ],
           responseType: "code" as const
         }

@@ -27,16 +27,16 @@ function getCallbackAndLogoutUrls(environment: string, baseDomain?: string): { c
         'http://localhost:3001/',
         'http://localhost:3000/api/auth/callback/cognito',
         'http://localhost:3001/api/auth/callback/cognito',
-        baseDomain ? `https://dev-jockularkangaroo.${baseDomain}/` : undefined,
-        baseDomain ? `https://dev-jockularkangaroo.${baseDomain}/api/auth/callback/cognito` : undefined,
+        baseDomain ? `https://dev-jockularkangaroo.${baseDomain.replace('jockularkangaroo.', '')}/` : undefined,
+        baseDomain ? `https://dev-jockularkangaroo.${baseDomain.replace('jockularkangaroo.', '')}/api/auth/callback/cognito` : undefined,
       ].filter(Boolean) as string[],
       logoutUrls: [
         'http://localhost:3000/',
         'http://localhost:3001/',
         'http://localhost:3000/oauth2/idpresponse',
         'http://localhost:3001/oauth2/idpresponse',
-        baseDomain ? `https://dev-jockularkangaroo.${baseDomain}/` : undefined,
-        baseDomain ? `https://dev-jockularkangaroo.${baseDomain}/oauth2/idpresponse` : undefined,
+        baseDomain ? `https://dev-jockularkangaroo.${baseDomain.replace('jockularkangaroo.', '')}/` : undefined,
+        baseDomain ? `https://dev-jockularkangaroo.${baseDomain.replace('jockularkangaroo.', '')}/oauth2/idpresponse` : undefined,
       ].filter(Boolean) as string[],
     };
   } else {
