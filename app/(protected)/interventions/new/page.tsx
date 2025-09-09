@@ -7,6 +7,8 @@ import { getStudentsAction } from '@/actions/db/students-actions';
 import { getInterventionProgramsAction } from '@/actions/db/intervention-programs-actions';
 import { getUsersAction } from '@/actions/db/users-actions';
 
+export const dynamic = 'force-dynamic';
+
 export default async function NewInterventionPage() {
   // Fetch required data for the form
   const [studentsResult, programsResult, usersResult] = await Promise.all([

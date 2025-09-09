@@ -2,6 +2,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { hasToolAccess } from '@/lib/auth/tool-helpers';
 import { getCurrentUserAction } from '@/actions/db/get-current-user-action';
 
+export const dynamic = 'force-dynamic';
+
 export default async function SchoolsPage() {
   const currentUserResult = await getCurrentUserAction();
   if (!currentUserResult.isSuccess || !currentUserResult.data) {

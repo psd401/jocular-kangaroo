@@ -110,7 +110,7 @@ export function StudentForm({ student, schools }: StudentFormProps) {
       } else {
         toast.error(result.message || 'Something went wrong');
       }
-    } catch (error) {
+    } catch {
       toast.error('An unexpected error occurred');
       // Error logged
     } finally {

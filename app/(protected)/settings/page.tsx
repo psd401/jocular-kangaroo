@@ -1,6 +1,8 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { hasRole } from '@/lib/auth/role-helpers';
 
+export const dynamic = 'force-dynamic';
+
 export default async function SettingsPage() {
   // Check if user is admin
   const isAdmin = await hasRole('Administrator');

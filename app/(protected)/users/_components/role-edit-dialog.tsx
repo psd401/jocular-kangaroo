@@ -42,7 +42,7 @@ export function RoleEditDialog({ user, roles, open, onOpenChange }: RoleEditDial
       } else {
         toast.error(result.message || 'Failed to update user roles');
       }
-    } catch (error) {
+    } catch {
       toast.error('An unexpected error occurred');
     } finally {
       setIsSubmitting(false);

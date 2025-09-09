@@ -85,7 +85,7 @@ export function ProgramForm({ program }: ProgramFormProps) {
       } else {
         toast.error(result.message || 'Something went wrong');
       }
-    } catch (error) {
+    } catch {
       toast.error('An unexpected error occurred');
     } finally {
       setIsSubmitting(false);

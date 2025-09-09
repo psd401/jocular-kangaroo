@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
 
+export const dynamic = 'force-dynamic';
+
 export default async function NewStudentPage() {
   const schoolsResult = await getSchoolsAction();
   const schools = schoolsResult.isSuccess && schoolsResult.data ? schoolsResult.data : [];

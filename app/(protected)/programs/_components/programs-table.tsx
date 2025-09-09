@@ -58,7 +58,7 @@ export function ProgramsTable({ programs }: ProgramsTableProps) {
               </TableCell>
             </TableRow>
           ) : (
-            Object.entries(programsByType).flatMap(([type, typePrograms]) =>
+            Object.entries(programsByType).flatMap(([, typePrograms]) =>
               typePrograms.map((program) => (
                 <TableRow key={program.id}>
                   <TableCell>
