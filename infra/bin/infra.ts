@@ -87,7 +87,6 @@ Object.entries(standardTags).forEach(([key, value]) => cdk.Tags.of(devStorageSta
 if (baseDomain) {
   const devFrontendStack = new FrontendStack(app, 'JockularKangaroo-FrontendStack-Dev', {
     environment: 'dev',
-    githubToken: SecretValue.secretsManager('jockular-kangaroo-github-token'),
     baseDomain,
     env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
   });
@@ -96,7 +95,6 @@ if (baseDomain) {
 
   const prodFrontendStack = new FrontendStack(app, 'JockularKangaroo-FrontendStack-Prod', {
     environment: 'prod',
-    githubToken: SecretValue.secretsManager('jockular-kangaroo-github-token'),
     baseDomain,
     env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
   });

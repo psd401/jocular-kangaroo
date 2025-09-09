@@ -10,7 +10,6 @@ import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 
 export interface FrontendStackProps extends cdk.StackProps {
   environment: 'dev' | 'prod';
-  githubToken: cdk.SecretValue;
   baseDomain: string;
 }
 
@@ -18,14 +17,10 @@ export class FrontendStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: FrontendStackProps) {
     super(scope, id, props);
 
-    // Keep the existing L2 construct to avoid recreating the app
+    // Create Amplify app using GitHub App integration (no token required)
     const amplifyApp = new amplify.App(this, 'AmplifyApp', {
       appName: `jockular-kangaroo-${props.environment}`,
-      sourceCodeProvider: new amplify.GitHubSourceCodeProvider({
-        owner: 'psd401',
-        repository: 'jockular-kangaroo',
-        oauthToken: props.githubToken,
-      }),
+      description: `Jockular Kangaroo K-12 Intervention Tracking System - ${props.environment}`,
       platform: amplify.Platform.WEB_COMPUTE,
       autoBranchDeletion: true,
       buildSpec: codebuild.BuildSpec.fromObject({
@@ -60,9 +55,8 @@ export class FrontendStack extends cdk.Stack {
       })
     });
 
-    // Branches
-    const branchName = props.environment === 'prod' ? 'main' : 'dev';
-    const branch = amplifyApp.addBranch(branchName);
+    // Repository connection will be handled manually through AWS Amplify console
+    // after installing the GitHub App for the organization
 
     // Create SSR Compute Role
     const ssrComputeRole = new iam.Role(this, 'SSRComputeRole', {
@@ -172,13 +166,8 @@ export class FrontendStack extends cdk.Stack {
     updateAppComputeRole.node.addDependency(amplifyApp);
     updateAppComputeRole.node.addDependency(ssrComputeRole);
 
-    // Add domain
-    amplifyApp.addDomain(props.baseDomain, { 
-      subDomains: [{ 
-        branch, 
-        prefix: props.environment 
-      }] 
-    });
+    // Domain association will be configured manually through AWS Amplify console
+    // after the repository is connected via GitHub App
 
     // Configure AWS WAF for Amplify - Simplified configuration
     const webAcl = new wafv2.CfnWebACL(this, 'AmplifyWAF', {
