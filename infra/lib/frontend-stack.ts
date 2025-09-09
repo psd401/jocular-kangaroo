@@ -143,20 +143,20 @@ export class FrontendStack extends cdk.Stack {
         action: 'updateApp',
         parameters: {
           appId: amplifyApp.appId,
-          iamServiceRole: amplifyRole.roleArn,
+          iamServiceRoleArn: amplifyRole.roleArn,
           computeRoleArn: ssrComputeRole.roleArn
         },
-        physicalResourceId: cr.PhysicalResourceId.of(`${amplifyApp.appId}-roles-update-v2`)
+        physicalResourceId: cr.PhysicalResourceId.of(`${amplifyApp.appId}-roles-update-v3`)
       },
       onUpdate: {
         service: 'Amplify',
         action: 'updateApp',
         parameters: {
           appId: amplifyApp.appId,
-          iamServiceRole: amplifyRole.roleArn,
+          iamServiceRoleArn: amplifyRole.roleArn,
           computeRoleArn: ssrComputeRole.roleArn
         },
-        physicalResourceId: cr.PhysicalResourceId.of(`${amplifyApp.appId}-roles-update-v2`)
+        physicalResourceId: cr.PhysicalResourceId.of(`${amplifyApp.appId}-roles-update-v3`)
       },
       policy: cr.AwsCustomResourcePolicy.fromStatements([
         new iam.PolicyStatement({
