@@ -1,7 +1,6 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as amplify from '@aws-cdk/aws-amplify-alpha';
-import * as amplifyL1 from 'aws-cdk-lib/aws-amplify';
 import * as codebuild from 'aws-cdk-lib/aws-codebuild';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as cr from 'aws-cdk-lib/custom-resources';
@@ -135,9 +134,7 @@ export class FrontendStack extends cdk.Stack {
       resources: ['*']
     }));
 
-    // Override the service role
-    const cfnApp = amplifyApp.node.defaultChild as amplifyL1.CfnApp;
-    cfnApp.iamServiceRole = amplifyRole.roleArn;
+    // Service role will be set via custom resource to avoid conflicts
 
     // Use Custom Resource to update the existing app with both service and compute roles
     const updateAppRoles = new cr.AwsCustomResource(this, 'UpdateAppRoles', {
@@ -149,7 +146,7 @@ export class FrontendStack extends cdk.Stack {
           iamServiceRole: amplifyRole.roleArn,
           computeRoleArn: ssrComputeRole.roleArn
         },
-        physicalResourceId: cr.PhysicalResourceId.of(`${amplifyApp.appId}-roles-update`)
+        physicalResourceId: cr.PhysicalResourceId.of(`${amplifyApp.appId}-roles-update-v2`)
       },
       onUpdate: {
         service: 'Amplify',
@@ -158,7 +155,8 @@ export class FrontendStack extends cdk.Stack {
           appId: amplifyApp.appId,
           iamServiceRole: amplifyRole.roleArn,
           computeRoleArn: ssrComputeRole.roleArn
-        }
+        },
+        physicalResourceId: cr.PhysicalResourceId.of(`${amplifyApp.appId}-roles-update-v2`)
       },
       policy: cr.AwsCustomResourcePolicy.fromStatements([
         new iam.PolicyStatement({
