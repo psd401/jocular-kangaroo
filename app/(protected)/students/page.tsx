@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { getStudentsAction } from '@/actions/db/students-actions';
 import { getSchoolsAction } from '@/actions/db/schools-actions';
 
+export const dynamic = 'force-dynamic';
+
 export default async function StudentsPage() {
   const [studentsResult, schoolsResult] = await Promise.all([
     getStudentsAction(),

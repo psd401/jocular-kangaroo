@@ -5,6 +5,8 @@ import { getCurrentUserAction } from "@/actions/db/get-current-user-action"
 import { getUserTools } from "@/lib/auth/tool-helpers"
 import { generateRequestId, createLogger } from "@/lib/logger"
 
+export const dynamic = 'force-dynamic';
+
 /**
  * Navigation API
  * 

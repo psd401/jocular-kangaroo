@@ -3,6 +3,8 @@ import { getUsersWithRolesAction, getRolesAction } from '@/actions/db/roles-acti
 import { UsersTable } from './_components/users-table';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
+export const dynamic = 'force-dynamic';
+
 export default async function UsersPage() {
   // Fetch users and roles
   const [usersResult, rolesResult] = await Promise.all([

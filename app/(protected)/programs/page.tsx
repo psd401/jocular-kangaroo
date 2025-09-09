@@ -5,6 +5,8 @@ import { Plus } from 'lucide-react';
 import { getInterventionProgramsAction } from '@/actions/db/intervention-programs-actions';
 import { ProgramsTable } from './_components/programs-table';
 
+export const dynamic = 'force-dynamic';
+
 export default async function ProgramsPage() {
   // Fetch all programs including inactive ones
   const programsResult = await getInterventionProgramsAction(true);
