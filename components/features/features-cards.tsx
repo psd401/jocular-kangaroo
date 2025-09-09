@@ -29,9 +29,9 @@ function Feature({ icon: Icon, title, description }: FeatureProps) {
 const features = [
   {
     icon: IconBrain,
-    title: 'AI-Powered Innovation',
+    title: 'Intervention Tracking',
     description:
-      'A creative space for building and exploring AI applications, designed specifically for Peninsula School District educators and students.',
+      'Comprehensive student intervention tracking and management system designed specifically for Peninsula School District educators and administrators.'
   },
   {
     icon: IconShield,
@@ -41,9 +41,9 @@ const features = [
   },
   {
     icon: IconSpeedboat,
-    title: 'Peninsula Pride',
+    title: 'Data-Driven Decisions',
     description:
-      'A collaborative space that reflects our community values while pushing the boundaries of what\'s possible with AI in education.',
+      'Empowering educators with actionable insights and evidence-based interventions to support every student\'s success.'
   },
 ];
 
@@ -67,10 +67,10 @@ export function FeaturesCards() {
             PENINSULA SCHOOL DISTRICT
           </Badge>
           <h1 className="text-5xl font-black mt-4">
-            AI Studio
+            Intervention Tracker
           </h1>
           <p className="text-lg text-muted-foreground mt-4 max-w-xl">
-            A creative space for building, exploring, and innovating with artificial intelligence in education
+            A comprehensive system for tracking and managing student interventions in K-12 education
           </p>
         </div>
       </div>

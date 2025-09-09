@@ -3,7 +3,7 @@ import { getServerSession } from "@/lib/auth/server-session"
 import { getNavigationItems as getNavigationItemsViaDataAPI } from "@/lib/db/data-api-adapter"
 import { getCurrentUserAction } from "@/actions/db/get-current-user-action"
 import { getUserTools } from "@/lib/auth/tool-helpers"
-import logger from '@/lib/logger';
+import { generateRequestId, createLogger } from "@/lib/logger"
 
 /**
  * Navigation API
@@ -33,11 +33,17 @@ import logger from '@/lib/logger';
  * }
  */
 export async function GET() {
+  const requestId = generateRequestId();
+  const logger = createLogger({ requestId, route: "/api/navigation", method: "GET" });
+  
   try {
+    logger.info("Fetching navigation items");
+    
     // Check if user is authenticated using NextAuth
     const session = await getServerSession()
     
     if (!session) {
+      logger.info("Unauthorized access attempt");
       return NextResponse.json(
         { isSuccess: false, message: "Unauthorized" },
         { status: 401 }
@@ -87,14 +93,20 @@ export async function GET() {
       // Get current user and their tools
       const userResult = await getCurrentUserAction();
       if (!userResult.isSuccess || !userResult.data) {
+        logger.error("Failed to get user data", { userResult });
         return NextResponse.json(
           { isSuccess: false, message: "Failed to get user data" },
           { status: 500 }
         )
       }
+      
+      logger.info("User data retrieved successfully", { userId: userResult.data.user.id });
 
       const userTools = await getUserTools(userResult.data.user.id);
+      logger.info("User tools retrieved", { toolCount: userTools.length });
+      
       const navItems = await getNavigationItemsViaDataAPI();
+      logger.info("Navigation items retrieved from database", { itemCount: navItems.length });
 
       // Get all tools to map toolId to tool identifier
       const { executeSQL } = await import('@/lib/db/data-api-adapter');
@@ -128,6 +140,11 @@ export async function GET() {
         color: null // This column doesn't exist in the current table
       }))
 
+      logger.info("Navigation items filtered and formatted successfully", { 
+        originalCount: navItems.length,
+        filteredCount: formattedNavItems.length 
+      });
+      
       return NextResponse.json({
         isSuccess: true,
         data: formattedNavItems

@@ -1,6 +1,6 @@
 # Documentation
 
-This directory contains all technical documentation for the AIStudio project.
+This directory contains all technical documentation for the Jockular Kangaroo project.
 
 ## Core Documentation
 

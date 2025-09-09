@@ -1,16 +1,24 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import logger from '@/lib/logger';
+import { generateRequestId, createLogger } from "@/lib/logger";
 
 export async function GET() {
+  const requestId = generateRequestId();
+  const logger = createLogger({ requestId, route: "/api/auth/federated-signout", method: "GET" });
+
   try {
+    logger.info("Starting federated signout process");
+    
     // Build Cognito logout URL first
     const cognitoDomain = process.env.NEXT_PUBLIC_COGNITO_DOMAIN;
     const clientId = process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID;
     const baseUrl = process.env.AUTH_URL || 'http://localhost:3000';
     
     if (!cognitoDomain || !clientId) {
-      logger.error('Missing Cognito configuration for logout');
+      logger.error('Missing Cognito configuration for logout', {
+        hasCognitoDomain: !!cognitoDomain,
+        hasClientId: !!clientId
+      });
       return NextResponse.redirect(new URL('/', baseUrl));
     }
     
@@ -18,6 +26,7 @@ export async function GET() {
     const logoutUri = `${baseUrl}/`;
     const cognitoLogoutUrl = `https://${cognitoDomain}/logout?client_id=${clientId}&logout_uri=${encodeURIComponent(logoutUri)}`;
     
+    logger.info("Built Cognito logout URL", { logoutUri, cognitoLogoutUrl });
     
     // Create redirect response and clear all auth cookies
     const response = NextResponse.redirect(cognitoLogoutUrl);
@@ -25,6 +34,8 @@ export async function GET() {
     // Clear NextAuth session cookies
     const cookieStore = await cookies();
     const allCookies = cookieStore.getAll();
+    
+    logger.info("Clearing auth cookies", { totalCookies: allCookies.length });
     
     // Clear each auth-related cookie
     allCookies.forEach((cookie: { name: string; value: string }) => {
@@ -70,9 +81,10 @@ export async function GET() {
       });
     });
     
+    logger.info("Federated signout completed successfully");
     return response;
   } catch (error) {
-    logger.error('Federated signout error:', error);
+    logger.error('Federated signout error', { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.redirect(new URL('/', process.env.AUTH_URL || 'http://localhost:3000'));
   }
 }

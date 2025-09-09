@@ -1,7 +1,7 @@
-# AIStudio Technical Specification
+# Jockular Kangaroo Technical Specification
 
 ## Overview
-AIStudio is a Next.js 14+ enterprise application that implements role-based access control (RBAC) using AWS Cognito with NextAuth v5 for authentication and AWS RDS Aurora Serverless v2 (PostgreSQL) for data persistence. The application follows modern development practices and implements AWS Well-Architected Framework principles for enterprise-grade applications.
+Jockular Kangaroo is a Next.js 14+ enterprise application that implements role-based access control (RBAC) using AWS Cognito with NextAuth v5 for authentication and AWS RDS Aurora Serverless v2 (PostgreSQL) for data persistence. The application follows modern development practices and implements AWS Well-Architected Framework principles for enterprise-grade applications.
 
 ## Core Architecture
 

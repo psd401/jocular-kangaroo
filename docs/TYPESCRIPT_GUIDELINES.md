@@ -1,6 +1,6 @@
 # TypeScript Guidelines
 
-This document outlines TypeScript best practices for the AI Studio codebase.
+This document outlines TypeScript best practices for the Jockular Kangaroo codebase.
 
 ## Error Handling
 

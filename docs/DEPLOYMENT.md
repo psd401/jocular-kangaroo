@@ -260,4 +260,4 @@ Stack outputs are shown after deployment. You can also find them in:
 - AWS CLI: `aws cloudformation describe-stacks --stack-name <stack-name>`
 
 ### Export Name Conflicts
-If you see errors about export names already being used (e.g., by AIStudio stacks), the JockularKangaroo stacks use prefixed export names to avoid conflicts. All exports are prefixed with "JockularKangaroo-".
+If you see errors about export names already being used (e.g., by other project stacks), the JockularKangaroo stacks use prefixed export names to avoid conflicts. All exports are prefixed with "JockularKangaroo-".

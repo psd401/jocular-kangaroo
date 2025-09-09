@@ -52,12 +52,12 @@ function LandingPageContent() {
         <Card className="w-full max-w-md border-0 shadow-2xl bg-white/80 backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="text-center text-3xl font-bold text-sky-900">
-              Welcome to PSD AI Studio
+              Welcome to Jockular Kangaroo
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-center mb-6 text-muted-foreground">
-              Your creative space for building, exploring, and innovating with AI in education.
+              Your intervention tracking system for K-12 school districts.
             </p>
             <Link 
               href={signInUrl}

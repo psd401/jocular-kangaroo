@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { validateDataAPIConnection } from "@/lib/db/data-api-adapter"
 import { getServerSession } from "@/lib/auth/server-session"
+import { generateRequestId, createLogger, startTimer } from "@/lib/logger"
 /**
  * Health Check API Endpoint
  * 
@@ -13,6 +14,12 @@ import { getServerSession } from "@/lib/auth/server-session"
  * Returns detailed diagnostic information to help troubleshoot deployment issues
  */
 export async function GET() {
+  const requestId = generateRequestId()
+  const logger = createLogger({ requestId, route: "/api/health", method: "GET" })
+  const timer = startTimer("health-check")
+  
+  logger.info("Health check initiated")
+  
   // For production, you may want to add authentication or IP restriction
   // For now, we'll allow access but you can uncomment the following to restrict:
   /*
@@ -71,6 +78,7 @@ export async function GET() {
   }
 
   // 1. Check environment variables
+  logger.debug("Checking environment variables")
   try {
     const requiredEnvVars = [
       'AUTH_URL',
@@ -110,6 +118,7 @@ export async function GET() {
       }
     }
   } catch (error) {
+    logger.error("Environment check failed", { error })
     healthCheck.checks.environment = {
       status: "error",
       error: error instanceof Error ? error.message : "Unknown error"
@@ -117,6 +126,7 @@ export async function GET() {
   }
 
   // 2. Check authentication (skip if missing auth config to avoid errors)
+  logger.debug("Checking authentication")
   if (process.env.AUTH_SECRET && process.env.AUTH_COGNITO_CLIENT_ID) {
     try {
       const session = await getServerSession()
@@ -127,6 +137,7 @@ export async function GET() {
         authConfigured: true
       }
     } catch (error) {
+      logger.error("Authentication check failed", { error })
       healthCheck.checks.authentication = {
         status: "error",
         error: error instanceof Error ? error.message : "Unknown error",
@@ -142,6 +153,7 @@ export async function GET() {
   }
 
   // 3. Check database connectivity (skip if missing database config)
+  logger.debug("Checking database connectivity")
   if (process.env.RDS_RESOURCE_ARN && process.env.RDS_SECRET_ARN) {
     try {
       const dbValidation = await validateDataAPIConnection()
@@ -150,6 +162,7 @@ export async function GET() {
         ...dbValidation
       }
     } catch (error) {
+      logger.error("Database check failed", { error })
       healthCheck.checks.database = {
         status: "error",
         error: error instanceof Error ? {
@@ -174,6 +187,15 @@ export async function GET() {
   )
   
   healthCheck.status = allHealthy ? "healthy" : "unhealthy"
+  
+  logger.info("Health check completed", { 
+    status: healthCheck.status,
+    environmentStatus: healthCheck.checks.environment.status,
+    authStatus: healthCheck.checks.authentication.status,
+    databaseStatus: healthCheck.checks.database.status
+  })
+  
+  timer()
   
   // 5. Add diagnostic hints if unhealthy
   if (!allHealthy) {

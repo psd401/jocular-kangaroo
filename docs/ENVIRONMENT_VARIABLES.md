@@ -1,6 +1,6 @@
 # Environment Variables Documentation
 
-This document provides a comprehensive guide to all environment variables required for the AI Studio application to function properly in AWS Amplify deployment.
+This document provides a comprehensive guide to all environment variables required for the Jockular Kangaroo application to function properly in AWS Amplify deployment.
 
 ## Required Environment Variables
 
@@ -19,14 +19,14 @@ This document provides a comprehensive guide to all environment variables requir
 |----------|-------------|---------|----------|
 | `NEXT_PUBLIC_COGNITO_USER_POOL_ID` | Cognito user pool ID (client-side) | From Auth stack outputs | ✅ |
 | `NEXT_PUBLIC_COGNITO_CLIENT_ID` | Cognito client ID (client-side) | From Auth stack outputs | ✅ |
-| `NEXT_PUBLIC_COGNITO_DOMAIN` | Cognito domain for OAuth | `aistudio-dev.auth.us-east-1.amazoncognito.com` | ✅ |
+| `NEXT_PUBLIC_COGNITO_DOMAIN` | Cognito domain for OAuth | `jockularkangaroo-dev.auth.us-east-1.amazoncognito.com` | ✅ |
 | `NEXT_PUBLIC_AWS_REGION` | AWS region for client-side operations | `us-east-1` | ✅ |
 
 ### Database Variables
 
 | Variable | Description | Example | Required |
 |----------|-------------|---------|----------|
-| `RDS_RESOURCE_ARN` | ARN of the RDS Aurora Serverless cluster | `arn:aws:rds:us-east-1:xxx:cluster:aistudio-xxx` | ✅ |
+| `RDS_RESOURCE_ARN` | ARN of the RDS Aurora Serverless cluster | `arn:aws:rds:us-east-1:xxx:cluster:jockularkangaroo-xxx` | ✅ |
 | `RDS_SECRET_ARN` | ARN of the database credentials secret | `arn:aws:secretsmanager:us-east-1:xxx:secret:xxx` | ✅ |
 | `SQL_LOGGING` | Enable/disable SQL query logging | `false` for production, `true` for debugging | ❌ |
 
@@ -133,11 +133,11 @@ aws cloudformation list-stacks
 
 # Get specific stack outputs
 aws cloudformation describe-stacks \
-  --stack-name AIStudio-DatabaseStack-Dev \
+  --stack-name JockularKangaroo-DatabaseStack-Dev \
   --query 'Stacks[0].Outputs'
 
 aws cloudformation describe-stacks \
-  --stack-name AIStudio-AuthStack-Dev \
+  --stack-name JockularKangaroo-AuthStack-Dev \
   --query 'Stacks[0].Outputs'
 ```
 
