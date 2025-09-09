@@ -52,7 +52,20 @@ export class FrontendStack extends cdk.Stack {
             }
           }
         }]
-      })
+      }),
+      // Enable comprehensive logging
+      customRules: [
+        {
+          source: '/<*>',
+          target: '/index.html',
+          status: amplify.RedirectStatus.NOT_FOUND_REWRITE
+        }
+      ],
+      environmentVariables: {
+        // Add a log group identifier for easier log discovery
+        '_CUSTOM_LOG_GROUP': `/aws/amplify/jockular-kangaroo-${props.environment}`,
+        'AMPLIFY_MONOREPO_APP_ROOT': '.'
+      }
     });
 
     // Repository connection will be handled manually through AWS Amplify console
@@ -126,22 +139,24 @@ export class FrontendStack extends cdk.Stack {
     const cfnApp = amplifyApp.node.defaultChild as amplifyL1.CfnApp;
     cfnApp.iamServiceRole = amplifyRole.roleArn;
 
-    // Use Custom Resource to update the existing app with compute role
-    const updateAppComputeRole = new cr.AwsCustomResource(this, 'UpdateAppComputeRole', {
+    // Use Custom Resource to update the existing app with both service and compute roles
+    const updateAppRoles = new cr.AwsCustomResource(this, 'UpdateAppRoles', {
       onCreate: {
         service: 'Amplify',
         action: 'updateApp',
         parameters: {
           appId: amplifyApp.appId,
+          iamServiceRole: amplifyRole.roleArn,
           computeRoleArn: ssrComputeRole.roleArn
         },
-        physicalResourceId: cr.PhysicalResourceId.of(`${amplifyApp.appId}-compute-role-update`)
+        physicalResourceId: cr.PhysicalResourceId.of(`${amplifyApp.appId}-roles-update`)
       },
       onUpdate: {
         service: 'Amplify',
         action: 'updateApp',
         parameters: {
           appId: amplifyApp.appId,
+          iamServiceRole: amplifyRole.roleArn,
           computeRoleArn: ssrComputeRole.roleArn
         }
       },
