@@ -165,7 +165,7 @@ export class FrontendStack extends cdk.Stack {
         }),
         new iam.PolicyStatement({
           actions: ['iam:PassRole'],
-          resources: [ssrComputeRole.roleArn],
+          resources: [ssrComputeRole.roleArn, amplifyRole.roleArn],
           conditions: {
             StringEquals: {
               'iam:PassedToService': 'amplify.amazonaws.com'
