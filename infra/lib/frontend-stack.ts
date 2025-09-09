@@ -178,8 +178,8 @@ export class FrontendStack extends cdk.Stack {
     });
 
     // Ensure custom resource runs after the app exists
-    updateAppComputeRole.node.addDependency(amplifyApp);
-    updateAppComputeRole.node.addDependency(ssrComputeRole);
+    updateAppRoles.node.addDependency(amplifyApp);
+    updateAppRoles.node.addDependency(ssrComputeRole);
 
     // Domain association will be configured manually through AWS Amplify console
     // after the repository is connected via GitHub App
