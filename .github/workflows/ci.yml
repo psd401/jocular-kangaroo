@@ -82,10 +82,13 @@ jobs:
     - name: Build CDK TypeScript
       run: cd infra && npm run build
     
+    - name: Install latest CDK CLI
+      run: npm install -g aws-cdk@latest
+    
     - name: Synthesize CDK stacks
       run: |
         cd infra
-        npx cdk synth --context baseDomain=example.com
+        cdk synth --context baseDomain=example.com
       env:
         # Dummy values for synthesis only - not for deployment
         CDK_DEFAULT_ACCOUNT: '123456789012'
@@ -98,7 +101,7 @@ jobs:
         cd infra
         echo "## Infrastructure Changes" >> $GITHUB_STEP_SUMMARY
         echo "```" >> $GITHUB_STEP_SUMMARY
-        npx cdk diff --context baseDomain=example.com 2>&1 | tee -a $GITHUB_STEP_SUMMARY || true
+        cdk diff --context baseDomain=example.com 2>&1 | tee -a $GITHUB_STEP_SUMMARY || true
         echo "```" >> $GITHUB_STEP_SUMMARY
       env:
         CDK_DEFAULT_ACCOUNT: '123456789012'
