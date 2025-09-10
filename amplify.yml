@@ -13,8 +13,8 @@ applications:
               echo "NPM version:" && npm --version
               echo "Current directory:" && pwd
               echo "Directory contents:" && ls -la
-            # Install dependencies
-            - npm ci --legacy-peer-deps
+            # Install dependencies (include dev for CSS tools if needed as backup)
+            - npm ci --legacy-peer-deps --include=dev
             # Check if UI components exist after install
             - |
               echo "=== UI Components Check ==="
@@ -42,10 +42,12 @@ applications:
               echo "tsconfig.json paths:" && cat tsconfig.json | grep -A 10 '"paths"' || echo "No paths in tsconfig"
               echo "next.config.mjs webpack config exists:" && grep -A 5 "webpack:" next.config.mjs || echo "No webpack config"
               echo "UI barrel export exists:" && test -f components/ui/index.ts && echo "✓ components/ui/index.ts exists" || echo "✗ components/ui/index.ts missing"
-            # Verify TypeScript configuration and path resolution
+            # Verify CSS build tools are available
             - |
-              echo "=== TypeScript Path Resolution Check ==="
-              npx tsc --noEmit --skipLibCheck --listFiles | grep "@/components/ui" | head -5 || echo "No @/components/ui paths found in TypeScript resolution"
+              echo "=== CSS Build Tools Check ==="
+              node -e "try { require('autoprefixer'); console.log('✓ autoprefixer available'); } catch(e) { console.log('✗ autoprefixer missing'); }"
+              node -e "try { require('postcss'); console.log('✓ postcss available'); } catch(e) { console.log('✗ postcss missing'); }"  
+              node -e "try { require('tailwindcss'); console.log('✓ tailwindcss available'); } catch(e) { console.log('✗ tailwindcss missing'); }"
             # Build the Next.js application
             - npm run build
       artifacts:
