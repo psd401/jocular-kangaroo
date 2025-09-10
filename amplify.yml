@@ -4,10 +4,28 @@ applications:
       phases:
         preBuild:
           commands:
-            # Use Node.js 20
+            # Use Node.js 20 (matching aistudio)
             - nvm use 20
+            # Debug environment
+            - |
+              echo "=== Build Environment Debug ==="
+              echo "Node version:" && node --version
+              echo "NPM version:" && npm --version
+              echo "Current directory:" && pwd
+              echo "Directory contents:" && ls -la
             # Install dependencies
             - npm ci --legacy-peer-deps
+            # Check if UI components exist after install
+            - |
+              echo "=== UI Components Check ==="
+              echo "Components directory:" && ls -la components/ || echo "No components directory"
+              echo "UI components:" && ls -la components/ui/*.tsx | head -5 || echo "No UI components found"
+              echo "Specific components check:"
+              test -f components/ui/dialog.tsx && echo "✓ dialog.tsx exists" || echo "✗ dialog.tsx missing"
+              test -f components/ui/form.tsx && echo "✓ form.tsx exists" || echo "✗ form.tsx missing"
+              test -f components/ui/input.tsx && echo "✓ input.tsx exists" || echo "✗ input.tsx missing"
+              test -f components/ui/button.tsx && echo "✓ button.tsx exists" || echo "✗ button.tsx missing"
+              test -f components/ui/select.tsx && echo "✓ select.tsx exists" || echo "✗ select.tsx missing"
         build:
           commands:
             # Create .env file
@@ -18,6 +36,11 @@ applications:
               printenv | grep -E '^AUTH_|^NEXT_PUBLIC_|^RDS_|^SQL_|^S3_|^NODE_ENV' > .env || echo "No matching env vars found"
               echo "Contents of .env:"
               cat .env || echo ".env is empty"
+            # Debug configuration before build
+            - |
+              echo "=== Pre-Build Debug ==="
+              echo "tsconfig.json paths:" && cat tsconfig.json | grep -A 5 '"paths"' || echo "No paths in tsconfig"
+              echo "next.config.mjs:" && cat next.config.mjs || echo "No next.config.mjs"
             # Build the Next.js application
             - npm run build
       artifacts:

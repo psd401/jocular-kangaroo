@@ -15,9 +15,7 @@ const nextConfig = {
       }
     ]
   },
-  experimental: {
-    serverComponentsExternalPackages: ['mammoth', 'pdf-parse', '@aws-sdk/client-rds-data'],
-  },
+  serverExternalPackages: ['mammoth', 'pdf-parse', '@aws-sdk/client-rds-data'],
 };
 
 export default nextConfig;
