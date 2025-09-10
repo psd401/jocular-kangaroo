@@ -56,7 +56,7 @@ If you need to manually run the schema:
 aws rds-data execute-statement \
   --resource-arn <cluster-arn> \
   --secret-arn <secret-arn> \
-  --database jockularkangaroo \
+  --database jocularkangaroo \
   --sql "$(cat schema/001-enums.sql)"
 ```
 

@@ -21,7 +21,7 @@ export class AuthStack extends cdk.Stack {
 
     // Cognito User Pool
     const userPool = new cognito.UserPool(this, 'UserPool', {
-      userPoolName: `jockular-kangaroo-${props.environment}-userpool`,
+      userPoolName: `jocular-kangaroo-${props.environment}-userpool`,
       signInAliases: { email: true },
       selfSignUpEnabled: false,
       passwordPolicy: {
@@ -56,7 +56,7 @@ export class AuthStack extends cdk.Stack {
     userPool.registerIdentityProvider(googleProvider);
 
     // User Pool Domain
-    const domainPrefix = `jockular-kangaroo-${props.environment}`;
+    const domainPrefix = `jocular-kangaroo-${props.environment}`;
     const userPoolDomain = new cognito.UserPoolDomain(this, 'UserPoolDomain', {
       userPool,
       cognitoDomain: {
@@ -83,21 +83,21 @@ export class AuthStack extends cdk.Stack {
     });
     userPoolClient.node.addDependency(googleProvider);
 
-    // Outputs - prefixed with JockularKangaroo to avoid conflicts
+    // Outputs - prefixed with JocularKangaroo to avoid conflicts
     new cdk.CfnOutput(this, 'UserPoolId', {
       value: userPool.userPoolId,
       description: 'Cognito User Pool ID',
-      exportName: `JockularKangaroo-${props.environment}-CognitoUserPoolId`,
+      exportName: `JocularKangaroo-${props.environment}-CognitoUserPoolId`,
     });
     new cdk.CfnOutput(this, 'UserPoolClientId', {
       value: userPoolClient.userPoolClientId,
       description: 'Cognito User Pool Client ID',
-      exportName: `JockularKangaroo-${props.environment}-CognitoUserPoolClientId`,
+      exportName: `JocularKangaroo-${props.environment}-CognitoUserPoolClientId`,
     });
     new cdk.CfnOutput(this, 'CognitoDomainUrl', {
       value: `https://${userPoolDomain.domainName}.auth.${this.region}.amazoncognito.com`,
       description: 'Cognito Domain URL',
-      exportName: `JockularKangaroo-${props.environment}-CognitoDomainUrl`,
+      exportName: `JocularKangaroo-${props.environment}-CognitoDomainUrl`,
     });
   }
 }

@@ -1,5 +1,5 @@
 {
-  "name": "jockular-kangaroo-infra",
+  "name": "jocular-kangaroo-infra",
   "version": "0.1.0",
   "bin": {
     "infra": "bin/infra.js"
