@@ -39,8 +39,13 @@ applications:
             # Debug configuration before build
             - |
               echo "=== Pre-Build Debug ==="
-              echo "tsconfig.json paths:" && cat tsconfig.json | grep -A 5 '"paths"' || echo "No paths in tsconfig"
-              echo "next.config.mjs:" && cat next.config.mjs || echo "No next.config.mjs"
+              echo "tsconfig.json paths:" && cat tsconfig.json | grep -A 10 '"paths"' || echo "No paths in tsconfig"
+              echo "next.config.mjs webpack config exists:" && grep -A 5 "webpack:" next.config.mjs || echo "No webpack config"
+              echo "UI barrel export exists:" && test -f components/ui/index.ts && echo "✓ components/ui/index.ts exists" || echo "✗ components/ui/index.ts missing"
+            # Verify TypeScript configuration and path resolution
+            - |
+              echo "=== TypeScript Path Resolution Check ==="
+              npx tsc --noEmit --skipLibCheck --listFiles | grep "@/components/ui" | head -5 || echo "No @/components/ui paths found in TypeScript resolution"
             # Build the Next.js application
             - npm run build
       artifacts:
