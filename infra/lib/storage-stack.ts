@@ -27,11 +27,11 @@ export class StorageStack extends cdk.Stack {
       ],
     });
 
-    // Output the S3 bucket name - prefixed with JockularKangaroo to avoid conflicts
+    // Output the S3 bucket name - prefixed with JocularKangaroo to avoid conflicts
     new cdk.CfnOutput(this, 'DocumentsBucketName', {
       value: bucket.bucketName,
       description: 'S3 bucket for document storage',
-      exportName: `JockularKangaroo-${props.environment}-DocumentsBucketName`,
+      exportName: `JocularKangaroo-${props.environment}-DocumentsBucketName`,
     });
   }
 }

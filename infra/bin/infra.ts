@@ -11,7 +11,7 @@ const app = new cdk.App();
 
 // Standard tags for cost allocation
 const standardTags = {
-  Project: 'JockularKangaroo',
+  Project: 'JocularKangaroo',
   Owner: 'Peninsula SD',
 };
 
@@ -58,7 +58,7 @@ function getCallbackAndLogoutUrls(environment: string, baseDomain?: string): { c
 }
 
 // Dev environment
-const devDbStack = new DatabaseStack(app, 'JockularKangaroo-DatabaseStack-Dev', {
+const devDbStack = new DatabaseStack(app, 'JocularKangaroo-DatabaseStack-Dev', {
   environment: 'dev',
   env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
 });
@@ -66,9 +66,9 @@ cdk.Tags.of(devDbStack).add('Environment', 'Dev');
 Object.entries(standardTags).forEach(([key, value]) => cdk.Tags.of(devDbStack).add(key, value));
 
 const devUrls = getCallbackAndLogoutUrls('dev', baseDomain);
-const devAuthStack = new AuthStack(app, 'JockularKangaroo-AuthStack-Dev', {
+const devAuthStack = new AuthStack(app, 'JocularKangaroo-AuthStack-Dev', {
   environment: 'dev',
-  googleClientSecret: SecretValue.secretsManager('jockular-kangaroo-dev-google-oauth', { jsonField: 'clientSecret' }),
+  googleClientSecret: SecretValue.secretsManager('jocular-kangaroo-dev-google-oauth', { jsonField: 'clientSecret' }),
   callbackUrls: devUrls.callbackUrls,
   logoutUrls: devUrls.logoutUrls,
   env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
@@ -76,7 +76,7 @@ const devAuthStack = new AuthStack(app, 'JockularKangaroo-AuthStack-Dev', {
 cdk.Tags.of(devAuthStack).add('Environment', 'Dev');
 Object.entries(standardTags).forEach(([key, value]) => cdk.Tags.of(devAuthStack).add(key, value));
 
-const devStorageStack = new StorageStack(app, 'JockularKangaroo-StorageStack-Dev', {
+const devStorageStack = new StorageStack(app, 'JocularKangaroo-StorageStack-Dev', {
   environment: 'dev',
   env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
 });
@@ -85,7 +85,7 @@ Object.entries(standardTags).forEach(([key, value]) => cdk.Tags.of(devStorageSta
 
 // Remove the isSynthOrDeploy conditional and always instantiate FrontendStack(s) if baseDomain is present
 if (baseDomain) {
-  const devFrontendStack = new FrontendStack(app, 'JockularKangaroo-FrontendStack-Dev', {
+  const devFrontendStack = new FrontendStack(app, 'JocularKangaroo-FrontendStack-Dev', {
     environment: 'dev',
     baseDomain,
     env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
@@ -93,7 +93,7 @@ if (baseDomain) {
   cdk.Tags.of(devFrontendStack).add('Environment', 'Dev');
   Object.entries(standardTags).forEach(([key, value]) => cdk.Tags.of(devFrontendStack).add(key, value));
 
-  const prodFrontendStack = new FrontendStack(app, 'JockularKangaroo-FrontendStack-Prod', {
+  const prodFrontendStack = new FrontendStack(app, 'JocularKangaroo-FrontendStack-Prod', {
     environment: 'prod',
     baseDomain,
     env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
@@ -102,12 +102,12 @@ if (baseDomain) {
   Object.entries(standardTags).forEach(([key, value]) => cdk.Tags.of(prodFrontendStack).add(key, value));
 
   // To deploy, use:
-  // cdk deploy JockularKangaroo-FrontendStack-Dev --context baseDomain=yourdomain.com
-  // cdk deploy JockularKangaroo-FrontendStack-Prod --context baseDomain=yourdomain.com
+  // cdk deploy JocularKangaroo-FrontendStack-Dev --context baseDomain=yourdomain.com
+  // cdk deploy JocularKangaroo-FrontendStack-Prod --context baseDomain=yourdomain.com
 }
 
 // Prod environment
-const prodDbStack = new DatabaseStack(app, 'JockularKangaroo-DatabaseStack-Prod', {
+const prodDbStack = new DatabaseStack(app, 'JocularKangaroo-DatabaseStack-Prod', {
   environment: 'prod',
   env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
 });
@@ -115,9 +115,9 @@ cdk.Tags.of(prodDbStack).add('Environment', 'Prod');
 Object.entries(standardTags).forEach(([key, value]) => cdk.Tags.of(prodDbStack).add(key, value));
 
 const prodUrls = getCallbackAndLogoutUrls('prod', baseDomain);
-const prodAuthStack = new AuthStack(app, 'JockularKangaroo-AuthStack-Prod', {
+const prodAuthStack = new AuthStack(app, 'JocularKangaroo-AuthStack-Prod', {
   environment: 'prod',
-  googleClientSecret: SecretValue.secretsManager('jockular-kangaroo-prod-google-oauth', { jsonField: 'clientSecret' }),
+  googleClientSecret: SecretValue.secretsManager('jocular-kangaroo-prod-google-oauth', { jsonField: 'clientSecret' }),
   callbackUrls: prodUrls.callbackUrls,
   logoutUrls: prodUrls.logoutUrls,
   env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
@@ -125,14 +125,14 @@ const prodAuthStack = new AuthStack(app, 'JockularKangaroo-AuthStack-Prod', {
 cdk.Tags.of(prodAuthStack).add('Environment', 'Prod');
 Object.entries(standardTags).forEach(([key, value]) => cdk.Tags.of(prodAuthStack).add(key, value));
 
-const prodStorageStack = new StorageStack(app, 'JockularKangaroo-StorageStack-Prod', {
+const prodStorageStack = new StorageStack(app, 'JocularKangaroo-StorageStack-Prod', {
   environment: 'prod',
   env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
 });
 cdk.Tags.of(prodStorageStack).add('Environment', 'Prod');
 Object.entries(standardTags).forEach(([key, value]) => cdk.Tags.of(prodStorageStack).add(key, value));
 
-new InfraStack(app, 'JockularKangaroo-InfraStack', {
+new InfraStack(app, 'JocularKangaroo-InfraStack', {
   /* If you don't specify 'env', this stack will be environment-agnostic.
    * Account/Region-dependent features and context lookups will not work,
    * but a single synthesized template can be deployed anywhere. */

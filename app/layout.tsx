@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils"
 // Client-side validation would expose sensitive environment variable names
 
 export const metadata = {
-  title: 'Jockular Kangaroo',
+  title: 'Jocular Kangaroo',
   description: 'K-12 Intervention Tracking System',
 };
 

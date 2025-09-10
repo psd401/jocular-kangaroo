@@ -17,7 +17,7 @@ INSERT INTO settings (key, value, category, description, is_secret) VALUES
 ('system.maintenance_mode', 'false', 'system', 'Whether the system is in maintenance mode', false),
 
 -- Application settings
-('app_name', 'Jockular Kangaroo', 'general', 'Application name', false),
+('app_name', 'Jocular Kangaroo', 'general', 'Application name', false),
 ('app_description', 'K-12 Intervention Tracking System', 'general', 'Application description', false),
 ('default_school_year', '2024-2025', 'academic', 'Current school year', false),
 ('intervention_reminder_days', '7', 'notifications', 'Days before intervention review reminder', false),

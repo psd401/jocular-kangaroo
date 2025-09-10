@@ -36,7 +36,7 @@ export function GlobalHeader() {
               className="h-8 w-8 object-contain" // Adjust size as needed
             />
             {/* Change site name */}
-            <span className="font-semibold text-lg inline-block">Jockular Kangaroo</span>
+            <span className="font-semibold text-lg inline-block">Jocular Kangaroo</span>
           </Link>
         </div>
 

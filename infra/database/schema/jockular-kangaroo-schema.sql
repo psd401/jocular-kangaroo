@@ -1,4 +1,4 @@
--- Jockular Kangaroo Database Schema
+-- Jocular Kangaroo Database Schema
 -- K-12 Intervention Tracking System
 
 -- =====================================================

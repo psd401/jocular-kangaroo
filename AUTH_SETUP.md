@@ -12,14 +12,14 @@
 1. Go to [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
 2. Create a new OAuth 2.0 Client ID (Web application)
 3. Add these authorized redirect URIs:
-   - `https://jockular-kangaroo-dev.auth.us-east-1.amazoncognito.com/oauth2/idpresponse`
+   - `https://jocular-kangaroo-dev.auth.us-east-1.amazoncognito.com/oauth2/idpresponse`
 4. Save the Client ID and Client Secret
 
 ### 2. Store Client Secret in AWS Secrets Manager
 
 ```bash
 aws secretsmanager create-secret \
-  --name jockular-kangaroo-dev-google-oauth \
+  --name jocular-kangaroo-dev-google-oauth \
   --secret-string '{"clientSecret":"YOUR_GOOGLE_CLIENT_SECRET"}'
 ```
 

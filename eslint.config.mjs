@@ -3,7 +3,7 @@ import { fileURLToPath } from "url";
 import { FlatCompat } from "@eslint/eslintrc";
 import loggingPlugin from "./eslint-plugin-logging/index.js";
 /**
- * ESLint Configuration for Jockular Kangaroo
+ * ESLint Configuration for Jocular Kangaroo
  * 
  * LOGGING ENFORCEMENT:
  * - NO console.log/error/warn in server code (actions/, app/api/)

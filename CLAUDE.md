@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Jockular Kangaroo codebase guidance for Claude Code. Optimized for token efficiency and accuracy.
+Jocular Kangaroo codebase guidance for Claude Code. Optimized for token efficiency and accuracy.
 
 ## 🚀 Quick Reference
 
@@ -13,7 +13,7 @@ npm run typecheck          # MUST pass before commit
 
 # Infrastructure (from /infra)
 cd infra && npx cdk deploy --all                                # Deploy all stacks
-cd infra && npx cdk deploy JockularKangaroo-FrontendStack-Dev   # Deploy single stack
+cd infra && npx cdk deploy JocularKangaroo-FrontendStack-Dev   # Deploy single stack
 ```
 
 ## 🎯 Critical Rules
@@ -120,6 +120,10 @@ export async function actionName(params: ParamsType): Promise<ActionState<Return
 - AWS SDK v3 clients for cloud services
 
 ## 🚨 Critical Rules for Code Quality
+
+Always use context7 when I need code generation, setup or configuration steps, or
+library/API documentation. This means you should automatically use the Context7 MCP
+tools to resolve library id and get library docs without me having to explicitly ask.
 
 ### BEFORE ANY COMMIT:
 1. **MUST RUN**: `npm run lint` - Fix ALL errors

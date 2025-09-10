@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This guide explains how to deploy the Jockular Kangaroo AWS infrastructure using AWS CDK.
+This guide explains how to deploy the Jocular Kangaroo AWS infrastructure using AWS CDK.
 
 ## Prerequisites
 - AWS CLI installed and configured with credentials for your AWS account
@@ -55,7 +55,7 @@ cdk deploy JockularKangaroo-DatabaseStack-Dev --require-approval never
 #### Auth Stack (requires Google OAuth setup)
 To deploy the auth stack, you'll need:
 1. Create a Google OAuth application
-2. Store the client secret in AWS Secrets Manager as `jockular-kangaroo-dev-google-oauth` with format: `{ "clientSecret": "..." }`
+2. Store the client secret in AWS Secrets Manager as `jocular-kangaroo-dev-google-oauth` with format: `{ "clientSecret": "..." }`
 3. Deploy with the client ID parameter:
 
 ```bash
@@ -90,7 +90,7 @@ cdk deploy JockularKangaroo-StorageStack-Prod --require-approval never
 
 If you want to deploy the frontend via AWS Amplify:
 
-1. Create a GitHub personal access token and store it in AWS Secrets Manager as `jockular-kangaroo-github-token`
+1. Create a GitHub personal access token and store it in AWS Secrets Manager as `jocular-kangaroo-github-token`
 2. Deploy with your domain:
 
 ```bash
@@ -196,8 +196,8 @@ If deploying the Auth stack, you'll need to set up Google OAuth:
 1. Go to [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
 2. Create a new OAuth 2.0 Client ID (Web application)
 3. Add authorized redirect URIs:
-   - For dev: `https://jockular-kangaroo-dev.auth.<region>.amazoncognito.com/oauth2/idpresponse`
-   - For prod: `https://jockular-kangaroo-prod.auth.<region>.amazoncognito.com/oauth2/idpresponse`
+   - For dev: `https://jocular-kangaroo-dev.auth.<region>.amazoncognito.com/oauth2/idpresponse`
+   - For prod: `https://jocular-kangaroo-prod.auth.<region>.amazoncognito.com/oauth2/idpresponse`
 4. Store the client secret in AWS Secrets Manager as described above
 5. Use the client ID when deploying the Auth stack
 
@@ -206,7 +206,7 @@ If deploying the Auth stack, you'll need to set up Google OAuth:
 If deploying the frontend stack:
 
 1. Create a GitHub personal access token with repository access
-2. Store it in AWS Secrets Manager as `jockular-kangaroo-github-token`
+2. Store it in AWS Secrets Manager as `jocular-kangaroo-github-token`
 3. Ensure your repository is accessible with this token
 
 ## Troubleshooting

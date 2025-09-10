@@ -18,8 +18,8 @@ export class FrontendStack extends cdk.Stack {
 
     // Create Amplify app using GitHub App integration (no token required)
     const amplifyApp = new amplify.App(this, 'AmplifyApp', {
-      appName: `jockular-kangaroo-${props.environment}`,
-      description: `Jockular Kangaroo K-12 Intervention Tracking System - ${props.environment}`,
+      appName: `jocular-kangaroo-${props.environment}`,
+      description: `Jocular Kangaroo K-12 Intervention Tracking System - ${props.environment}`,
       platform: amplify.Platform.WEB_COMPUTE,
       autoBranchDeletion: true,
       buildSpec: codebuild.BuildSpec.fromObject({
@@ -62,7 +62,7 @@ export class FrontendStack extends cdk.Stack {
       ],
       environmentVariables: {
         // Add a log group identifier for easier log discovery
-        '_CUSTOM_LOG_GROUP': `/aws/amplify/jockular-kangaroo-${props.environment}`,
+        '_CUSTOM_LOG_GROUP': `/aws/amplify/jocular-kangaroo-${props.environment}`,
         'AMPLIFY_MONOREPO_APP_ROOT': '.'
       }
     });
@@ -73,8 +73,8 @@ export class FrontendStack extends cdk.Stack {
     // Create SSR Compute Role
     const ssrComputeRole = new iam.Role(this, 'SSRComputeRole', {
       assumedBy: new iam.ServicePrincipal('amplify.amazonaws.com'),
-      description: `SSR Compute role for Jockular Kangaroo ${props.environment}`,
-      roleName: `jockular-kangaroo-ssr-compute-${props.environment}-${cdk.Stack.of(this).account}`,
+      description: `SSR Compute role for Jocular Kangaroo ${props.environment}`,
+      roleName: `jocular-kangaroo-ssr-compute-${props.environment}-${cdk.Stack.of(this).account}`,
       inlinePolicies: {
         'RDSDataAPIAccess': new iam.PolicyDocument({
           statements: [
@@ -105,8 +105,8 @@ export class FrontendStack extends cdk.Stack {
     // Create service role
     const amplifyRole = new iam.Role(this, 'AmplifyServiceRole', {
       assumedBy: new iam.ServicePrincipal('amplify.amazonaws.com'),
-      description: `Service role for Jockular Kangaroo ${props.environment}`,
-      roleName: `jockular-kangaroo-amplify-service-${props.environment}-${cdk.Stack.of(this).account}`,
+      description: `Service role for Jocular Kangaroo ${props.environment}`,
+      roleName: `jocular-kangaroo-amplify-service-${props.environment}-${cdk.Stack.of(this).account}`,
       managedPolicies: [
         iam.ManagedPolicy.fromAwsManagedPolicyName('AdministratorAccess-Amplify')
       ]
@@ -186,7 +186,7 @@ export class FrontendStack extends cdk.Stack {
     const webAcl = new wafv2.CfnWebACL(this, 'AmplifyWAF', {
       scope: 'CLOUDFRONT',
       defaultAction: { allow: {} },
-      description: `WAF for Jockular Kangaroo ${props.environment} environment`,
+      description: `WAF for Jocular Kangaroo ${props.environment} environment`,
       rules: [
         // Basic rate limiting rule
         {
@@ -221,24 +221,24 @@ export class FrontendStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'WAFArn', {
       value: webAcl.attrArn,
       description: 'WAF WebACL ARN for Amplify app',
-      exportName: `JockularKangaroo-${props.environment}-WAFArn`
+      exportName: `JocularKangaroo-${props.environment}-WAFArn`
     });
 
     // Outputs
     new cdk.CfnOutput(this, 'AmplifyAppId', {
       value: amplifyApp.appId,
       description: 'Amplify App ID',
-      exportName: `JockularKangaroo-${props.environment}-AmplifyAppId`,
+      exportName: `JocularKangaroo-${props.environment}-AmplifyAppId`,
     });
     new cdk.CfnOutput(this, 'AmplifyDefaultDomain', {
       value: amplifyApp.defaultDomain,
       description: 'Amplify Default Domain',
-      exportName: `JockularKangaroo-${props.environment}-AmplifyDefaultDomain`,
+      exportName: `JocularKangaroo-${props.environment}-AmplifyDefaultDomain`,
     });
     new cdk.CfnOutput(this, 'SSRComputeRoleArn', {
       value: ssrComputeRole.roleArn,
       description: 'SSR Compute Role ARN',
-      exportName: `JockularKangaroo-${props.environment}-SSRComputeRoleArn`,
+      exportName: `JocularKangaroo-${props.environment}-SSRComputeRoleArn`,
     });
 
     // Environment variables instructions

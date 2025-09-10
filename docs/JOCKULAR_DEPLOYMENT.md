@@ -1,6 +1,6 @@
-# Jockular Kangaroo Deployment Guide
+# Jocular Kangaroo Deployment Guide
 
-This guide provides step-by-step instructions for deploying the Jockular Kangaroo intervention tracking system to AWS.
+This guide provides step-by-step instructions for deploying the Jocular Kangaroo intervention tracking system to AWS.
 
 ## Prerequisites
 
@@ -44,10 +44,10 @@ NEXTAUTH_SECRET=generate-with-openssl-rand-base64-32
 
 # AWS Configuration
 NEXT_PUBLIC_AWS_REGION=us-east-1
-S3_BUCKET_NAME=jockular-kangaroo-documents-prod
+S3_BUCKET_NAME=jocular-kangaroo-documents-prod
 
 # Application
-NEXT_PUBLIC_APP_NAME="Jockular Kangaroo"
+NEXT_PUBLIC_APP_NAME="Jocular Kangaroo"
 NEXT_PUBLIC_DISTRICT_NAME="Your School District"
 ```
 

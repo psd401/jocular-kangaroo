@@ -1,6 +1,6 @@
 # Database Schema Management
 
-This directory contains the database schema and initialization system for Jockular Kangaroo. The system automatically initializes new databases with the complete schema when deploying the infrastructure.
+This directory contains the database schema and initialization system for Jocular Kangaroo. The system automatically initializes new databases with the complete schema when deploying the infrastructure.
 
 ## Directory Structure
 

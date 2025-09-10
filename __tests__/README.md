@@ -1,4 +1,4 @@
-# Jockular Kangaroo Test Suite
+# Jocular Kangaroo Test Suite
 
 ## Overview
 
