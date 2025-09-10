@@ -15,8 +15,11 @@ const nextConfig = {
       }
     ]
   },
+  serverExternalPackages: ['mammoth', 'pdf-parse'],
   experimental: {
-    serverComponentsExternalPackages: ['mammoth', 'pdf-parse', '@aws-sdk/client-rds-data'],
+    serverActions: {
+      bodySizeLimit: '100mb',
+    },
   },
 };
 
