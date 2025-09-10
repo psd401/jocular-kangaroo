@@ -16,7 +16,7 @@ const customJestConfig = {
   },
   setupFiles: ['<rootDir>/.jest/setEnvVars.js'],
   transformIgnorePatterns: [
-    'node_modules/(?!(lucide-react)/)'
+    'node_modules/(?!(lucide-react|nanoid)/)'
   ]
 };
 

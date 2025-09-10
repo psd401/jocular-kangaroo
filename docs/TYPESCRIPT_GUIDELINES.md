@@ -1,6 +1,6 @@
 # TypeScript Guidelines
 
-This document outlines TypeScript best practices for the Jockular Kangaroo codebase.
+This document outlines TypeScript best practices for the Jocular Kangaroo codebase.
 
 ## Error Handling
 

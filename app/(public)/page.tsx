@@ -52,7 +52,7 @@ function LandingPageContent() {
         <Card className="w-full max-w-md border-0 shadow-2xl bg-white/80 backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="text-center text-3xl font-bold text-sky-900">
-              Welcome to Jockular Kangaroo
+              Welcome to Jocular Kangaroo
             </CardTitle>
           </CardHeader>
           <CardContent>

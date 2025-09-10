@@ -1,6 +1,6 @@
 # Documentation
 
-This directory contains all technical documentation for the Jockular Kangaroo project.
+This directory contains all technical documentation for the Jocular Kangaroo project.
 
 ## Core Documentation
 

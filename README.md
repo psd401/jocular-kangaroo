@@ -1,4 +1,4 @@
-# Jockular Kangaroo - K-12 Intervention Tracking System
+# Jocular Kangaroo - K-12 Intervention Tracking System
 
 A comprehensive web application for tracking and managing student interventions in K-12 school districts. Built to help educators document, monitor, and improve intervention strategies for student success.
 
@@ -66,8 +66,8 @@ This project provisions all core infrastructure using AWS CDK, following the AWS
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/psd401/jockular-kangaroo.git
-   cd jockular-kangaroo
+   git clone https://github.com/psd401/jocular-kangaroo.git
+   cd jocular-kangaroo
    ```
 
 2. Install dependencies:
@@ -127,8 +127,8 @@ For production, all database operations go through the RDS Data API using the `e
 ```bash
 cd infra
 cdk deploy --all \
-  --parameters JockularKangaroo-AuthStack-Dev:GoogleClientId=your-dev-client-id \
-  --parameters JockularKangaroo-AuthStack-Prod:GoogleClientId=your-prod-client-id \
+  --parameters JocularKangaroo-AuthStack-Dev:GoogleClientId=your-dev-client-id \
+  --parameters JocularKangaroo-AuthStack-Prod:GoogleClientId=your-prod-client-id \
   --context baseDomain=yourdomain.com
 ```
 

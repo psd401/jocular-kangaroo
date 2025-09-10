@@ -5,8 +5,8 @@ This guide covers local development, coding standards, and testing for this proj
 ## Local Setup
 1. Clone the repository:
    ```sh
-   git clone git@github.com:psd401/jockular-kangaroo.git
-   cd jockular-kangaroo
+   git clone git@github.com:psd401/jocular-kangaroo.git
+   cd jocular-kangaroo
    ```
 2. Install dependencies:
    ```sh
@@ -201,14 +201,14 @@ As you make changes to the infrastructure code (add/modify resources, parameters
    - To deploy all stacks:
      ```sh
      cdk deploy --all \
-       --parameters JockularKangaroo-AuthStack-Dev:GoogleClientId=your-dev-client-id \
-       --parameters JockularKangaroo-AuthStack-Prod:GoogleClientId=your-prod-client-id \
+       --parameters JocularKangaroo-AuthStack-Dev:GoogleClientId=your-dev-client-id \
+       --parameters JocularKangaroo-AuthStack-Prod:GoogleClientId=your-prod-client-id \
        --context baseDomain=yourdomain.com
      ```
    - Or deploy only the stacks you changed:
      ```sh
-     cdk deploy JockularKangaroo-DatabaseStack-Dev JockularKangaroo-FrontendStack-Dev \
-       --parameters JockularKangaroo-AuthStack-Dev:GoogleClientId=your-dev-client-id \
+     cdk deploy JocularKangaroo-DatabaseStack-Dev JocularKangaroo-FrontendStack-Dev \
+       --parameters JocularKangaroo-AuthStack-Dev:GoogleClientId=your-dev-client-id \
        --context baseDomain=yourdomain.com
      ```
    - Only pass the `--parameters` flag for stacks that require parameters.
@@ -221,7 +221,7 @@ As you make changes to the infrastructure code (add/modify resources, parameters
 
 5. **Other Useful Commands:**
    - List stacks: `cdk list`
-   - Destroy a stack: `cdk destroy JockularKangaroo-FrontendStack-Dev --context baseDomain=yourdomain.com`
+   - Destroy a stack: `cdk destroy JocularKangaroo-FrontendStack-Dev --context baseDomain=yourdomain.com`
 
 See `docs/DEPLOYMENT.md` for more details and examples.
 

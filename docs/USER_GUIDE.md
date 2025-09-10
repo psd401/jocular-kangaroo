@@ -1,6 +1,6 @@
-# Jockular Kangaroo User Guide
+# Jocular Kangaroo User Guide
 
-Welcome to the Jockular Kangaroo K-12 Intervention Tracking System. This guide will help you get started with the system and make the most of its features.
+Welcome to the Jocular Kangaroo K-12 Intervention Tracking System. This guide will help you get started with the system and make the most of its features.
 
 ## Table of Contents
 
@@ -16,7 +16,7 @@ Welcome to the Jockular Kangaroo K-12 Intervention Tracking System. This guide w
 
 ### First Time Login
 
-1. Navigate to your district's Jockular Kangaroo URL
+1. Navigate to your district's Jocular Kangaroo URL
 2. Click "Sign In" 
 3. Enter your email and temporary password
 4. Follow prompts to set a new password

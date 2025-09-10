@@ -42,7 +42,7 @@ ON CONFLICT DO NOTHING;
 
 -- Update settings for the application
 INSERT INTO settings (key, value, description, category) VALUES
-('app_name', 'Jockular Kangaroo', 'Application name', 'general'),
+('app_name', 'Jocular Kangaroo', 'Application name', 'general'),
 ('app_description', 'K-12 Intervention Tracking System', 'Application description', 'general'),
 ('default_school_year', '2024-2025', 'Current school year', 'academic'),
 ('intervention_reminder_days', '7', 'Days before intervention review reminder', 'notifications'),

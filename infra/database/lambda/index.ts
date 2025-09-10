@@ -39,7 +39,7 @@ const MIGRATION_FILES = [
 
 export async function handler(event: CustomResourceEvent): Promise<any> {
   console.log('Database initialization event:', JSON.stringify(event, null, 2));
-  console.log('Handler version: Jockular Kangaroo - Include migration files 006-010');
+  console.log('Handler version: Jocular Kangaroo - Include migration files 006-010');
 
   // Only run on Create or Update
   if (event.RequestType === 'Delete') {

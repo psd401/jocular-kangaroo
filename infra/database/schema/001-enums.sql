@@ -50,7 +50,7 @@ CREATE TYPE navigation_type AS ENUM (
 );
 
 -- =====================================================
--- JOCKULAR KANGAROO SPECIFIC ENUMS
+-- JOCULAR KANGAROO SPECIFIC ENUMS
 -- =====================================================
 
 -- Grade levels for students

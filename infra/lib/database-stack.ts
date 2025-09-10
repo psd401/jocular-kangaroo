@@ -73,7 +73,7 @@ export class DatabaseStack extends cdk.Stack {
     const cluster = new rds.DatabaseCluster(this, 'AuroraCluster', {
       engine: rds.DatabaseClusterEngine.auroraPostgres({ version: rds.AuroraPostgresEngineVersion.VER_15_3 }),
       credentials: rds.Credentials.fromSecret(dbSecret),
-      defaultDatabaseName: 'jockularkangaroo',
+      defaultDatabaseName: 'jocularkangaroo',
       writer: rds.ClusterInstance.serverlessV2('Writer', {
         scaleWithWriter: true,
         // Note: publiclyAccessible requires the DB to be in public subnets
@@ -111,7 +111,7 @@ export class DatabaseStack extends cdk.Stack {
 
     // Create log group for database initialization Lambda
     const dbInitLambdaLogGroup = new logs.LogGroup(this, 'DbInitLambdaLogGroup', {
-      logGroupName: `/aws/lambda/JockularKangaroo-${props.environment}-DbInitLambda`,
+      logGroupName: `/aws/lambda/JocularKangaroo-${props.environment}-DbInitLambda`,
       retention: logs.RetentionDays.ONE_WEEK,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
@@ -169,7 +169,7 @@ export class DatabaseStack extends cdk.Stack {
 
     // Create log group for Custom Resource Provider
     const dbInitProviderLogGroup = new logs.LogGroup(this, 'DbInitProviderLogGroup', {
-      logGroupName: `/aws/lambda/JockularKangaroo-${props.environment}-DbInitProvider`,
+      logGroupName: `/aws/lambda/JocularKangaroo-${props.environment}-DbInitProvider`,
       retention: logs.RetentionDays.ONE_WEEK,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
@@ -186,7 +186,7 @@ export class DatabaseStack extends cdk.Stack {
       properties: {
         ClusterArn: cluster.clusterArn,
         SecretArn: dbSecret.secretArn,
-        DatabaseName: 'jockularkangaroo',
+        DatabaseName: 'jocularkangaroo',
         Environment: props.environment,
         // Add a timestamp to force update on stack updates if needed
         Timestamp: new Date().toISOString(),
@@ -198,35 +198,35 @@ export class DatabaseStack extends cdk.Stack {
     // Ensure the database is created before initialization
     dbInit.node.addDependency(cluster);
 
-    // Outputs - prefixed with JockularKangaroo to avoid conflicts
+    // Outputs - prefixed with JocularKangaroo to avoid conflicts
     new cdk.CfnOutput(this, 'RdsProxyEndpoint', {
       value: proxy.endpoint,
       description: 'RDS Proxy endpoint',
-      exportName: `JockularKangaroo-${props.environment}-RdsProxyEndpoint`,
+      exportName: `JocularKangaroo-${props.environment}-RdsProxyEndpoint`,
     });
     
     new cdk.CfnOutput(this, 'ClusterEndpoint', {
       value: cluster.clusterEndpoint.hostname,
       description: 'Aurora cluster writer endpoint',
-      exportName: `JockularKangaroo-${props.environment}-ClusterEndpoint`,
+      exportName: `JocularKangaroo-${props.environment}-ClusterEndpoint`,
     });
     
     new cdk.CfnOutput(this, 'ClusterReaderEndpoint', {
       value: cluster.clusterReadEndpoint.hostname,
       description: 'Aurora cluster reader endpoint',
-      exportName: `JockularKangaroo-${props.environment}-ClusterReaderEndpoint`,
+      exportName: `JocularKangaroo-${props.environment}-ClusterReaderEndpoint`,
     });
     
     new cdk.CfnOutput(this, 'ClusterArn', {
       value: cluster.clusterArn,
       description: 'Aurora cluster ARN for Data API',
-      exportName: `JockularKangaroo-${props.environment}-ClusterArn`,
+      exportName: `JocularKangaroo-${props.environment}-ClusterArn`,
     });
     
     new cdk.CfnOutput(this, 'DbSecretArn', {
       value: dbSecret.secretArn,
       description: 'Secrets Manager ARN for DB credentials',
-      exportName: `JockularKangaroo-${props.environment}-DbSecretArn`,
+      exportName: `JocularKangaroo-${props.environment}-DbSecretArn`,
     });
   }
 }

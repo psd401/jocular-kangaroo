@@ -1,7 +1,7 @@
 {
   "name": "db-init-lambda",
   "version": "1.0.0",
-  "description": "Database initialization Lambda for Jockular Kangaroo",
+  "description": "Database initialization Lambda for Jocular Kangaroo",
   "main": "index.js",
   "scripts": {
     "build": "tsc",

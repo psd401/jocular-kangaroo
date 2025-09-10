@@ -14,7 +14,7 @@ export async function createGithubIssueAction({ title, description }: CreateGith
     if (!token) {
       return { isSuccess: false, message: "GitHub token not configured. Please set GITHUB_ISSUE_TOKEN in the admin panel." }
     }
-    const res = await fetch("https://api.github.com/repos/psd401/jockular-kangaroo/issues", {
+    const res = await fetch("https://api.github.com/repos/psd401/jocular-kangaroo/issues", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${token}`,

@@ -1,6 +1,6 @@
 # Environment Variables Documentation
 
-This document provides a comprehensive guide to all environment variables required for the Jockular Kangaroo application to function properly in AWS Amplify deployment.
+This document provides a comprehensive guide to all environment variables required for the Jocular Kangaroo application to function properly in AWS Amplify deployment.
 
 ## Required Environment Variables
 

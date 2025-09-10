@@ -1,5 +1,5 @@
 -- 002-tables.sql: Create core database tables
--- This file creates the table structure for the Jockular Kangaroo application
+-- This file creates the table structure for the Jocular Kangaroo application
 
 -- Users table: Core user information synced from AWS Cognito
 CREATE TABLE IF NOT EXISTS users (
