@@ -29,34 +29,12 @@ export class FrontendStack extends cdk.Stack {
             phases: {
               preBuild: {
                 commands: [
-                  'echo "=== Pre-build Debug Information ==="',
-                  'node --version',
-                  'npm --version',
-                  'pwd',
-                  'ls -la',
-                  'echo "Checking if UI components directory exists..."',
-                  'ls -la components/ || echo "components directory not found"',
-                  'ls -la components/ui/ || echo "components/ui directory not found"',
-                  'echo "Installing dependencies..."',
                   'npm ci --legacy-peer-deps'
                 ]
               },
               build: {
                 commands: [
-                  'echo "=== Build Phase Debug Information ==="',
-                  'echo "Creating .env file with environment variables..."',
                   'env | grep -E "^AUTH_|^NEXT_PUBLIC_|^RDS_|^SQL_" >> .env',
-                  'echo "Contents of .env file:"',
-                  'cat .env || echo ".env file is empty"',
-                  'echo "Verifying UI components exist before build..."',
-                  'ls -la components/ui/dialog.tsx || echo "ERROR: dialog.tsx not found"',
-                  'ls -la components/ui/form.tsx || echo "ERROR: form.tsx not found"',
-                  'ls -la components/ui/input.tsx || echo "ERROR: input.tsx not found"',
-                  'ls -la components/ui/button.tsx || echo "ERROR: button.tsx not found"',
-                  'ls -la components/ui/select.tsx || echo "ERROR: select.tsx not found"',
-                  'echo "Checking tsconfig.json path aliases..."',
-                  'cat tsconfig.json | grep -A 5 paths || echo "No paths found in tsconfig"',
-                  'echo "Starting Next.js build..."',
                   'npm run build'
                 ]
               }
