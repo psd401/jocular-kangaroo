@@ -6,6 +6,7 @@ import { getUserTools } from "@/lib/auth/tool-helpers"
 import { generateRequestId, createLogger } from "@/lib/logger"
 
 export const dynamic = 'force-dynamic';
+export const runtime = "nodejs";
 
 /**
  * Navigation API

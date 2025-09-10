@@ -146,7 +146,7 @@ export class FrontendStack extends cdk.Stack {
           iamServiceRoleArn: amplifyRole.roleArn,
           computeRoleArn: ssrComputeRole.roleArn
         },
-        physicalResourceId: cr.PhysicalResourceId.of(`${amplifyApp.appId}-roles-update-v3`)
+        physicalResourceId: cr.PhysicalResourceId.of(`${amplifyApp.appId}-roles-update-v4`)
       },
       onUpdate: {
         service: 'Amplify',
@@ -156,7 +156,7 @@ export class FrontendStack extends cdk.Stack {
           iamServiceRoleArn: amplifyRole.roleArn,
           computeRoleArn: ssrComputeRole.roleArn
         },
-        physicalResourceId: cr.PhysicalResourceId.of(`${amplifyApp.appId}-roles-update-v3`)
+        physicalResourceId: cr.PhysicalResourceId.of(`${amplifyApp.appId}-roles-update-v4`)
       },
       policy: cr.AwsCustomResourcePolicy.fromStatements([
         new iam.PolicyStatement({
