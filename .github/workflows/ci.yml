@@ -88,7 +88,7 @@ jobs:
     - name: Synthesize CDK stacks
       run: |
         cd infra
-        cdk synth --context baseDomain=example.com
+        cdk synth --context baseDomain=example.com --context ci=true
       env:
         # Dummy values for synthesis only - not for deployment
         CDK_DEFAULT_ACCOUNT: '123456789012'

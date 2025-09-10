@@ -17,6 +17,7 @@ const standardTags = {
 
 // Get baseDomain from context first
 const baseDomain = app.node.tryGetContext('baseDomain');
+const isCI = app.node.tryGetContext('ci') === 'true';
 
 // Helper to get callback/logout URLs for any environment
 function getCallbackAndLogoutUrls(environment: string, baseDomain?: string): { callbackUrls: string[], logoutUrls: string[] } {
@@ -68,7 +69,9 @@ Object.entries(standardTags).forEach(([key, value]) => cdk.Tags.of(devDbStack).a
 const devUrls = getCallbackAndLogoutUrls('dev', baseDomain);
 const devAuthStack = new AuthStack(app, 'JocularKangaroo-AuthStack-Dev', {
   environment: 'dev',
-  googleClientSecret: SecretValue.secretsManager('jocular-kangaroo-dev-google-oauth', { jsonField: 'clientSecret' }),
+  googleClientSecret: isCI 
+    ? SecretValue.unsafePlainText('dummy-secret-for-ci')
+    : SecretValue.secretsManager('jocular-kangaroo-dev-google-oauth', { jsonField: 'clientSecret' }),
   callbackUrls: devUrls.callbackUrls,
   logoutUrls: devUrls.logoutUrls,
   env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
@@ -117,7 +120,9 @@ Object.entries(standardTags).forEach(([key, value]) => cdk.Tags.of(prodDbStack).
 const prodUrls = getCallbackAndLogoutUrls('prod', baseDomain);
 const prodAuthStack = new AuthStack(app, 'JocularKangaroo-AuthStack-Prod', {
   environment: 'prod',
-  googleClientSecret: SecretValue.secretsManager('jocular-kangaroo-prod-google-oauth', { jsonField: 'clientSecret' }),
+  googleClientSecret: isCI 
+    ? SecretValue.unsafePlainText('dummy-secret-for-ci')
+    : SecretValue.secretsManager('jocular-kangaroo-prod-google-oauth', { jsonField: 'clientSecret' }),
   callbackUrls: prodUrls.callbackUrls,
   logoutUrls: prodUrls.logoutUrls,
   env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
