@@ -18,7 +18,7 @@ export async function GET() {
       );
     }
     
-    logger.info('Testing Drizzle connection', { userId: session.user?.id });
+    logger.info('Testing Drizzle connection for authenticated user');
     
     // Test the Drizzle connection
     const result = await testDrizzleConnection();

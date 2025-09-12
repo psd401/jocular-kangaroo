@@ -7,6 +7,7 @@
 
 import * as dotenv from 'dotenv';
 import { testDrizzleConnection } from '@/lib/db/drizzle-client';
+import { createLogger } from '@/lib/logger';
 
 // Load environment variables
 dotenv.config({ path: '.env.local' });

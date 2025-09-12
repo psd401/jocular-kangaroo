@@ -127,8 +127,8 @@ The project uses Drizzle ORM with AWS RDS Data API for type-safe database operat
 
 1. Ensure environment variables are configured in `.env.local`:
    ```
-   RDS_RESOURCE_ARN=arn:aws:rds:region:account:cluster:name
-   RDS_SECRET_ARN=arn:aws:secretsmanager:region:account:secret:name
+   RDS_RESOURCE_ARN=arn:aws:rds:us-east-1:123456789012:cluster:your-cluster-name
+   RDS_SECRET_ARN=arn:aws:secretsmanager:us-east-1:123456789012:secret:your-secret-name
    RDS_DATABASE_NAME=your_database_name
    AWS_REGION=us-east-1
    ```

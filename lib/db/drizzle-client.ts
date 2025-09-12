@@ -35,13 +35,21 @@ function getRDSClient(): RDSDataClient {
 // Get Data API configuration with validation
 function getDataApiConfig() {
   const missingVars = [];
+  const invalidVars = [];
+  
+  // Basic ARN pattern validation
+  const arnPattern = /^arn:aws:[a-z0-9-]+:[a-z0-9-]*:[0-9]{12}:.+$/;
   
   if (!process.env.RDS_RESOURCE_ARN) {
     missingVars.push('RDS_RESOURCE_ARN');
+  } else if (!arnPattern.test(process.env.RDS_RESOURCE_ARN)) {
+    invalidVars.push('RDS_RESOURCE_ARN (invalid ARN format)');
   }
   
   if (!process.env.RDS_SECRET_ARN) {
     missingVars.push('RDS_SECRET_ARN');
+  } else if (!arnPattern.test(process.env.RDS_SECRET_ARN)) {
+    invalidVars.push('RDS_SECRET_ARN (invalid ARN format)');
   }
   
   if (!process.env.RDS_DATABASE_NAME) {
@@ -56,13 +64,22 @@ function getDataApiConfig() {
     missingVars.push('AWS_REGION or NEXT_PUBLIC_AWS_REGION');
   }
   
-  if (missingVars.length > 0) {
-    const errorMsg = `Missing required environment variables: ${missingVars.join(', ')}`;
+  if (missingVars.length > 0 || invalidVars.length > 0) {
+    const errorParts = [];
+    if (missingVars.length > 0) {
+      errorParts.push(`Missing required environment variables: ${missingVars.join(', ')}`);
+    }
+    if (invalidVars.length > 0) {
+      errorParts.push(`Invalid environment variables: ${invalidVars.join(', ')}`);
+    }
+    const errorMsg = errorParts.join('. ');
+    
     log.error('Environment validation failed', { 
       missingVars,
+      invalidVars,
       region,
-      availableEnvVars: Object.keys(process.env).filter(k => 
-        k.includes('AWS') || k.includes('RDS'))
+      availableAwsVarsCount: Object.keys(process.env).filter(k => 
+        k.includes('AWS') || k.includes('RDS')).length
     });
     throw new Error(errorMsg);
   }
@@ -100,8 +117,9 @@ export function getDb() {
   return dbInstance;
 }
 
-// Export the Drizzle database instance (for backward compatibility)
-// This will be lazy-loaded on first access
+// Export the Drizzle database instance with lazy initialization
+// Uses Proxy pattern to defer initialization until first access, preventing
+// connection attempts during module import and enabling better error handling
 export const db = new Proxy({} as ReturnType<typeof drizzle>, {
   get(target, prop) {
     const instance = getDb();
