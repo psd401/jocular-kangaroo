@@ -11,7 +11,13 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "typecheck": "tsc --noEmit",
-    "ts-node": "tsx"
+    "ts-node": "tsx",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:pull": "drizzle-kit pull",
+    "db:studio": "drizzle-kit studio",
+    "db:check": "drizzle-kit check"
   },
   "dependencies": {
     "@aws-amplify/adapter-nextjs": "^1.6.4",
@@ -61,6 +67,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "drizzle-orm": "^0.44.5",
     "escape-html": "^1.0.3",
     "framer-motion": "^12.6.3",
     "jsonwebtoken": "^9.0.2",
@@ -101,6 +108,7 @@
     "babel-loader": "^10.0.0",
     "copy-webpack-plugin": "^13.0.0",
     "dotenv": "^16.5.0",
+    "drizzle-kit": "^0.31.4",
     "eslint": "^9.0.0-alpha.0",
     "eslint-config-next": "^15.1.4",
     "jest": "^29.7.0",
