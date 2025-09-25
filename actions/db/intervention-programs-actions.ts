@@ -135,7 +135,7 @@ export async function createInterventionProgramAction(
     if (!validationResult.success) {
       return { 
         isSuccess: false, 
-        message: validationResult.error.errors[0].message 
+        message: validationResult.error.issues[0].message 
       };
     }
 
@@ -209,7 +209,7 @@ export async function updateInterventionProgramAction(
     if (!validationResult.success) {
       return { 
         isSuccess: false, 
-        message: validationResult.error.errors[0].message 
+        message: validationResult.error.issues[0].message 
       };
     }
 

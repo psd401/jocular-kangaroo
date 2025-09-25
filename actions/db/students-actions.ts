@@ -241,7 +241,7 @@ export async function createStudentAction(
     if (!validationResult.success) {
       return { 
         isSuccess: false, 
-        message: validationResult.error.errors[0].message 
+        message: validationResult.error.issues[0].message 
       };
     }
 
@@ -345,7 +345,7 @@ export async function updateStudentAction(
     if (!validationResult.success) {
       return { 
         isSuccess: false, 
-        message: validationResult.error.errors[0].message 
+        message: validationResult.error.issues[0].message 
       };
     }
 

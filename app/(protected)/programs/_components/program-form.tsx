@@ -33,7 +33,7 @@ const formSchema = z.object({
   name: z.string().min(1, 'Program name is required').max(100),
   description: z.string().optional(),
   type: z.enum(['academic', 'behavioral', 'social_emotional', 'attendance', 'health', 'other'], {
-    required_error: 'Program type is required',
+    message: 'Program type is required',
   }),
   duration_days: z.string().optional(),
   materials: z.string().optional(),
