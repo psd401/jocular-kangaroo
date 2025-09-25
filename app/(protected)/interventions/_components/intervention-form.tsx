@@ -468,7 +468,7 @@ export function InterventionForm({
                   <SelectItem value="">Unassigned</SelectItem>
                   {users.map((user) => (
                     <SelectItem key={user.id} value={user.id.toString()}>
-                      {user.last_name}, {user.first_name}
+                      {user.lastName}, {user.firstName}
                     </SelectItem>
                   ))}
                 </SelectContent>

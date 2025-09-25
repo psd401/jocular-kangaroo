@@ -50,8 +50,8 @@ export function UsersTable({ users, roles }: UsersTableProps) {
                 <TableRow key={user.id}>
                   <TableCell>
                     <div className="font-medium">
-                      {user.first_name || user.last_name
-                        ? `${user.first_name || ''} ${user.last_name || ''}`.trim()
+                      {user.firstName || user.lastName
+                        ? `${user.firstName || ''} ${user.lastName || ''}`.trim()
                         : 'No name'}
                     </div>
                   </TableCell>
@@ -70,14 +70,14 @@ export function UsersTable({ users, roles }: UsersTableProps) {
                     </div>
                   </TableCell>
                   <TableCell>
-                    {user.last_sign_in_at ? (
-                      format(new Date(user.last_sign_in_at), 'MMM d, yyyy h:mm a')
+                    {user.lastSignInAt ? (
+                      format(new Date(user.lastSignInAt), 'MMM d, yyyy h:mm a')
                     ) : (
                       <span className="text-sm text-muted-foreground">Never</span>
                     )}
                   </TableCell>
                   <TableCell>
-                    {format(new Date(user.created_at), 'MMM d, yyyy')}
+                    {format(new Date(user.createdAt), 'MMM d, yyyy')}
                   </TableCell>
                   <TableCell className="text-right">
                     <Button

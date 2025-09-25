@@ -1,199 +1,281 @@
 'use server';
 
-import { executeSQL } from '@/lib/db/data-api-adapter';
+import { db } from '@/lib/db/drizzle-client';
+import { roles, users, userRoles } from '@/src/db/schema';
+import { eq, asc } from 'drizzle-orm';
 import { ActionState } from '@/types/actions-types';
 import { getCurrentUserAction } from './get-current-user-action';
 import { hasRole } from '@/lib/auth/role-helpers';
+import { createLogger, generateRequestId, startTimer, sanitizeForLogging } from '@/lib/logger';
+import { handleError, createSuccess, createError } from '@/lib/error-utils';
+import { ErrorLevel } from '@/types/actions-types';
 
 export interface Role {
   id: number;
   name: string;
   description?: string;
-  is_system: boolean;
-  created_at: Date;
-  updated_at: Date;
+  isSystem: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface UserWithRoles {
   id: number;
   email: string;
-  first_name?: string;
-  last_name?: string;
+  firstName?: string;
+  lastName?: string;
   roles: Role[];
-  created_at: Date;
-  last_sign_in_at?: Date;
+  createdAt: Date;
+  lastSignInAt?: Date;
 }
 
 // Get all roles
 export async function getRolesAction(): Promise<ActionState<Role[]>> {
+  const requestId = generateRequestId();
+  const timer = startTimer('getRolesAction');
+  const log = createLogger({ requestId, action: 'getRolesAction' });
+
   try {
+    log.info('Action started');
+
     const currentUser = await getCurrentUserAction();
     if (!currentUser.isSuccess || !currentUser.data) {
+      log.warn('Unauthorized access attempt');
+      timer({ status: 'error' });
       return { isSuccess: false, message: 'Unauthorized' };
     }
 
     // Check if user is admin
     const isAdmin = await hasRole('Administrator');
     if (!isAdmin) {
+      log.warn('User lacks Administrator role', {
+        userId: currentUser.data.user.id,
+        userRoles: currentUser.data.roles.map(r => r.name)
+      });
+      timer({ status: 'error' });
       return { isSuccess: false, message: 'You do not have permission to view roles' };
     }
 
-    const query = `
-      SELECT 
-        id, name, description, is_system, created_at, updated_at
-      FROM roles
-      ORDER BY name
-    `;
+    // Query roles with Drizzle ORM
+    const roleResults = await db
+      .select()
+      .from(roles)
+      .orderBy(asc(roles.name));
 
-    const result = await executeSQL(query);
-    const roles = result.map(row => ({
-      id: row.id as number,
-      name: row.name as string,
-      description: row.description as string | undefined,
-      is_system: row.isSystem as boolean,
-      created_at: new Date(row.createdAt as string),
-      updated_at: new Date(row.updatedAt as string),
+    // Drizzle automatically converts snake_case to camelCase
+    const rolesList: Role[] = roleResults.map(role => ({
+      id: role.id,
+      name: role.name,
+      description: role.description || undefined,
+      isSystem: role.isSystem,
+      createdAt: role.createdAt,
+      updatedAt: role.updatedAt,
     }));
 
-    return { isSuccess: true, message: 'Roles fetched successfully', data: roles };
+    timer({ status: 'success' });
+    log.info('Action completed', { roleCount: rolesList.length });
+
+    return createSuccess(rolesList, 'Roles fetched successfully');
   } catch (error) {
-    // Error logged: Error fetching roles
-    return { isSuccess: false, message: 'Failed to fetch roles' };
+    timer({ status: 'error' });
+    return handleError(error, 'Failed to fetch roles', {
+      context: 'getRolesAction'
+    });
   }
 }
 
 // Get all users with their roles
 export async function getUsersWithRolesAction(): Promise<ActionState<UserWithRoles[]>> {
+  const requestId = generateRequestId();
+  const timer = startTimer('getUsersWithRolesAction');
+  const log = createLogger({ requestId, action: 'getUsersWithRolesAction' });
+
   try {
+    log.info('Action started');
+
     const currentUser = await getCurrentUserAction();
     if (!currentUser.isSuccess || !currentUser.data) {
+      log.warn('Unauthorized access attempt');
+      timer({ status: 'error' });
       return { isSuccess: false, message: 'Unauthorized' };
     }
 
     // Check if user is admin
     const isAdmin = await hasRole('Administrator');
     if (!isAdmin) {
+      log.warn('User lacks Administrator role', {
+        userId: currentUser.data.user.id,
+        userRoles: currentUser.data.roles.map(r => r.name)
+      });
+      timer({ status: 'error' });
       return { isSuccess: false, message: 'You do not have permission to view users' };
     }
 
-    const query = `
-      SELECT 
-        u.id, u.email, u.first_name, u.last_name, u.created_at, u.last_sign_in_at,
-        r.id as role_id, r.name as role_name, r.description as role_description, r.is_system
-      FROM users u
-      LEFT JOIN user_roles ur ON u.id = ur.user_id
-      LEFT JOIN roles r ON ur.role_id = r.id
-      WHERE u.deleted_at IS NULL
-      ORDER BY u.last_name, u.first_name, r.name
-    `;
+    // Query users with their roles using LEFT JOIN
+    const result = await db
+      .select({
+        userId: users.id,
+        userEmail: users.email,
+        userFirstName: users.firstName,
+        userLastName: users.lastName,
+        userCreatedAt: users.createdAt,
+        userLastSignInAt: users.lastSignInAt,
+        roleId: roles.id,
+        roleName: roles.name,
+        roleDescription: roles.description,
+        roleIsSystem: roles.isSystem,
+        roleCreatedAt: roles.createdAt,
+        roleUpdatedAt: roles.updatedAt
+      })
+      .from(users)
+      .leftJoin(userRoles, eq(users.id, userRoles.userId))
+      .leftJoin(roles, eq(userRoles.roleId, roles.id))
+      .orderBy(asc(users.lastName), asc(users.firstName), asc(roles.name));
 
-    const result = await executeSQL(query);
-    
     // Group users with their roles
     const usersMap = new Map<number, UserWithRoles>();
-    
+
     result.forEach(row => {
-      const userId = row.id as number;
-      
+      const userId = row.userId;
+
       if (!usersMap.has(userId)) {
         usersMap.set(userId, {
           id: userId,
-          email: row.email as string,
-          first_name: row.firstName as string | undefined,
-          last_name: row.lastName as string | undefined,
-          created_at: new Date(row.createdAt as string),
-          last_sign_in_at: row.lastSignInAt ? new Date(row.lastSignInAt as string) : undefined,
+          email: row.userEmail,
+          firstName: row.userFirstName || undefined,
+          lastName: row.userLastName || undefined,
+          createdAt: row.userCreatedAt,
+          lastSignInAt: row.userLastSignInAt || undefined,
           roles: []
         });
       }
-      
+
       // Add role if it exists
       if (row.roleId) {
         const user = usersMap.get(userId)!;
         user.roles.push({
-          id: row.roleId as number,
-          name: row.roleName as string,
-          description: row.roleDescription as string | undefined,
-          is_system: row.isSystem as boolean,
-          created_at: new Date(),
-          updated_at: new Date()
+          id: row.roleId,
+          name: row.roleName!,
+          description: row.roleDescription || undefined,
+          isSystem: row.roleIsSystem!,
+          createdAt: row.roleCreatedAt!,
+          updatedAt: row.roleUpdatedAt!
         });
       }
     });
 
-    return { isSuccess: true, message: 'Users fetched successfully', data: Array.from(usersMap.values()) };
+    const usersList = Array.from(usersMap.values());
+
+    timer({ status: 'success' });
+    log.info('Action completed', { userCount: usersList.length });
+
+    return createSuccess(usersList, 'Users fetched successfully');
   } catch (error) {
-    // Error logged: Error fetching users with roles
-    return { isSuccess: false, message: 'Failed to fetch users' };
+    timer({ status: 'error' });
+    return handleError(error, 'Failed to fetch users', {
+      context: 'getUsersWithRolesAction'
+    });
   }
 }
 
 // Update user roles
 export async function updateUserRolesAction(userId: number, roleIds: number[]): Promise<ActionState<void>> {
+  const requestId = generateRequestId();
+  const timer = startTimer('updateUserRolesAction');
+  const log = createLogger({ requestId, action: 'updateUserRolesAction' });
+
   try {
+    log.info('Action started', {
+      params: sanitizeForLogging({ userId, roleIds })
+    });
+
     const currentUser = await getCurrentUserAction();
     if (!currentUser.isSuccess || !currentUser.data) {
+      log.warn('Unauthorized access attempt');
+      timer({ status: 'error' });
       return { isSuccess: false, message: 'Unauthorized' };
     }
 
     // Check if user is admin
     const isAdmin = await hasRole('Administrator');
     if (!isAdmin) {
+      log.warn('User lacks Administrator role', {
+        userId: currentUser.data.user.id,
+        userRoles: currentUser.data.roles.map(r => r.name)
+      });
+      timer({ status: 'error' });
       return { isSuccess: false, message: 'You do not have permission to update user roles' };
     }
 
     // Don't allow users to modify their own admin role
     if (userId === currentUser.data.user.id) {
-      const userRoles = await executeSQL(
-        `SELECT role_id FROM user_roles WHERE user_id = $1`,
-        [{ name: '1', value: { longValue: userId } }]
-      );
-      
-      const adminRole = await executeSQL(
-        `SELECT id FROM roles WHERE name = 'Administrator'`,
-        []
-      );
-      
-      if (adminRole.length > 0 && userRoles.length > 0) {
-        const adminRoleId = adminRole[0].id as number;
-        const hasAdminRole = userRoles.some(r => (r.roleId as number) === adminRoleId);
+      log.info('Checking self-modification of admin role', { currentUserId: userId });
+
+      const currentUserRoles = await db
+        .select({ roleId: userRoles.roleId })
+        .from(userRoles)
+        .where(eq(userRoles.userId, userId));
+
+      const adminRole = await db
+        .select({ id: roles.id })
+        .from(roles)
+        .where(eq(roles.name, 'Administrator'))
+        .limit(1);
+
+      if (adminRole.length > 0 && currentUserRoles.length > 0) {
+        const adminRoleId = adminRole[0].id;
+        const hasAdminRole = currentUserRoles.some(r => r.roleId === adminRoleId);
         const keepingAdminRole = roleIds.includes(adminRoleId);
-        
+
         if (hasAdminRole && !keepingAdminRole) {
+          log.warn('Attempt to remove own administrator role', {
+            userId,
+            adminRoleId,
+            currentRoleIds: currentUserRoles.map(r => r.roleId),
+            newRoleIds: roleIds
+          });
+          timer({ status: 'error' });
           return { isSuccess: false, message: 'Cannot remove your own administrator role' };
         }
       }
     }
 
-    // Start transaction
-    await executeSQL('BEGIN');
+    // Use Drizzle transaction
+    await db.transaction(async (tx) => {
+      log.info('Starting transaction', { userId, roleIds });
 
-    try {
       // Remove existing roles
-      await executeSQL(
-        'DELETE FROM user_roles WHERE user_id = $1',
-        [{ name: '1', value: { longValue: userId } }]
-      );
+      await tx
+        .delete(userRoles)
+        .where(eq(userRoles.userId, userId));
+
+      log.info('Removed existing user roles', { userId });
 
       // Add new roles
-      for (const roleId of roleIds) {
-        await executeSQL(
-          'INSERT INTO user_roles (user_id, role_id) VALUES ($1, $2)',
-          [
-            { name: '1', value: { longValue: userId } },
-            { name: '2', value: { longValue: roleId } }
-          ]
-        );
-      }
+      if (roleIds.length > 0) {
+        const newUserRoles = roleIds.map(roleId => ({
+          userId,
+          roleId,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }));
 
-      await executeSQL('COMMIT');
-      return { isSuccess: true, message: 'User roles updated successfully', data: undefined };
-    } catch (error) {
-      await executeSQL('ROLLBACK');
-      throw error;
-    }
+        await tx
+          .insert(userRoles)
+          .values(newUserRoles);
+
+        log.info('Added new user roles', { userId, roleCount: roleIds.length });
+      }
+    });
+
+    timer({ status: 'success' });
+    log.info('Action completed', { userId, roleCount: roleIds.length });
+
+    return createSuccess(undefined, 'User roles updated successfully');
   } catch (error) {
-    // Error logged: Error updating user roles
-    return { isSuccess: false, message: 'Failed to update user roles' };
+    timer({ status: 'error' });
+    return handleError(error, 'Failed to update user roles', {
+      context: 'updateUserRolesAction'
+    });
   }
 }

@@ -1,45 +1,54 @@
 'use server';
 
-import { executeSQL } from '@/lib/db/data-api-adapter';
+import { db } from "@/lib/db/drizzle-client"
+import { schools } from "@/src/db/schema"
 import { ActionState } from '@/types/actions-types';
 import { School } from '@/types/intervention-types';
 import { getCurrentUserAction } from './get-current-user-action';
-
-// Helper to convert null to undefined
-const nullToUndefined = <T>(value: T | null): T | undefined => value === null ? undefined : value;
+import { createLogger, generateRequestId, startTimer } from "@/lib/logger"
+import { handleError, createSuccess } from "@/lib/error-utils"
 
 // Get all schools
 export async function getSchoolsAction(): Promise<ActionState<School[]>> {
+  const requestId = generateRequestId()
+  const timer = startTimer("getSchoolsAction")
+  const log = createLogger({ requestId, action: "getSchoolsAction" })
+
   try {
+    log.info("Action started")
+
     const currentUser = await getCurrentUserAction();
     if (!currentUser.isSuccess || !currentUser.data) {
+      log.warn("Unauthorized access attempt")
+      timer({ status: "error" })
       return { isSuccess: false, message: 'Unauthorized' };
     }
 
-    const query = `
-      SELECT 
-        id, name, district, address, phone, email, 
-        principal_name, created_at, updated_at
-      FROM schools
-      ORDER BY name
-    `;
+    const result = await db
+      .select()
+      .from(schools)
+      .orderBy(schools.name)
 
-    const result = await executeSQL<any>(query);
-    const schools = result.map(row => ({
-      id: row.id as number,
-      name: row.name as string,
-      district: nullToUndefined(row.district as string | null),
-      address: nullToUndefined(row.address as string | null),
-      phone: nullToUndefined(row.phone as string | null),
-      email: nullToUndefined(row.email as string | null),
-      principal_name: nullToUndefined(row.principalName as string | null),
-      created_at: new Date(row.createdAt as string),
-      updated_at: new Date(row.updatedAt as string),
+    const schoolsList: School[] = result.map(row => ({
+      id: row.id,
+      name: row.name,
+      district: row.district || undefined,
+      address: row.address || undefined,
+      phone: row.phone || undefined,
+      email: row.email || undefined,
+      principal_name: row.principalName || undefined,
+      created_at: row.createdAt,
+      updated_at: row.updatedAt,
     }));
 
-    return { isSuccess: true, message: 'Schools fetched successfully', data: schools };
+    timer({ status: "success" })
+    log.info("Action completed", { schoolCount: schoolsList.length })
+
+    return createSuccess(schoolsList, 'Schools fetched successfully')
   } catch (error) {
-    // Error logged: Error fetching schools
-    return { isSuccess: false, message: 'Failed to fetch schools' };
+    timer({ status: "error" })
+    return handleError(error, "Failed to fetch schools", {
+      context: "getSchoolsAction"
+    })
   }
 }

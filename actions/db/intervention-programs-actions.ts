@@ -2,11 +2,15 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { executeSQL } from '@/lib/db/data-api-adapter';
+import { db } from '@/lib/db/drizzle-client';
+import { interventionPrograms, interventions } from '@/src/db/schema';
 import { ActionState } from '@/types/actions-types';
 import { InterventionProgram, InterventionType } from '@/types/intervention-types';
 import { getCurrentUserAction } from './get-current-user-action';
 import { hasToolAccess } from '@/lib/auth/tool-helpers';
+import { createLogger, generateRequestId, startTimer, sanitizeForLogging } from '@/lib/logger';
+import { handleError, createSuccess, ErrorFactories } from '@/lib/error-utils';
+import { eq, count, inArray, asc } from 'drizzle-orm';
 
 // Validation schemas
 const createProgramSchema = z.object({
@@ -27,43 +31,53 @@ const updateProgramSchema = createProgramSchema.partial().extend({
 export async function getInterventionProgramsAction(
   includeInactive = false
 ): Promise<ActionState<InterventionProgram[]>> {
+  const requestId = generateRequestId()
+  const timer = startTimer("getInterventionProgramsAction")
+  const log = createLogger({ requestId, action: "getInterventionProgramsAction" })
+
   try {
+    log.info("Action started", { params: sanitizeForLogging({ includeInactive }) })
+
     const currentUser = await getCurrentUserAction();
     if (!currentUser.isSuccess || !currentUser.data) {
-      return { isSuccess: false, message: 'Unauthorized' };
+      log.warn("Unauthorized")
+      throw ErrorFactories.authNoSession()
     }
 
-    let query = `
-      SELECT 
-        id, name, description, type, duration_days,
-        materials, goals, is_active, created_at, updated_at
-      FROM intervention_programs
-    `;
-    
+    const query = db
+      .select()
+      .from(interventionPrograms)
+      .orderBy(asc(interventionPrograms.type), asc(interventionPrograms.name))
+
     if (!includeInactive) {
-      query += ' WHERE is_active = true';
+      query.where(eq(interventionPrograms.isActive, true))
     }
-    
-    query += ' ORDER BY type, name';
 
-    const result = await executeSQL<any>(query);
+    const result = await query
+
     const programs = result.map(row => ({
-      id: row.id as number,
-      name: row.name as string,
-      description: row.description as string | undefined,
+      id: row.id,
+      name: row.name,
+      description: row.description || undefined,
       type: row.type as InterventionType,
-      duration_days: row.durationDays as number | undefined,
-      materials: row.materials as string | undefined,
-      goals: row.goals as string | undefined,
-      is_active: row.isActive as boolean,
-      created_at: new Date(row.createdAt as string),
-      updated_at: new Date(row.updatedAt as string),
+      duration_days: row.durationDays || undefined,
+      materials: row.materials || undefined,
+      goals: row.goals || undefined,
+      is_active: row.isActive,
+      created_at: new Date(row.createdAt),
+      updated_at: new Date(row.updatedAt),
     }));
 
-    return { isSuccess: true, message: 'Programs fetched successfully', data: programs };
+    timer({ status: "success" })
+    log.info("Programs retrieved successfully", { count: programs.length })
+    return createSuccess(programs, 'Programs fetched successfully')
   } catch (error) {
-    // Error logged: Error fetching intervention programs
-    return { isSuccess: false, message: 'Failed to fetch intervention programs' };
+    timer({ status: "error" })
+    return handleError(error, "Failed to fetch intervention programs", {
+      context: "getInterventionProgramsAction",
+      requestId,
+      operation: "getPrograms"
+    })
   }
 }
 
@@ -71,46 +85,55 @@ export async function getInterventionProgramsAction(
 export async function getInterventionProgramByIdAction(
   id: number
 ): Promise<ActionState<InterventionProgram>> {
+  const requestId = generateRequestId()
+  const timer = startTimer("getInterventionProgramByIdAction")
+  const log = createLogger({ requestId, action: "getInterventionProgramByIdAction" })
+
   try {
+    log.info("Action started", { params: sanitizeForLogging({ id }) })
+
     const currentUser = await getCurrentUserAction();
     if (!currentUser.isSuccess || !currentUser.data) {
-      return { isSuccess: false, message: 'Unauthorized' };
+      log.warn("Unauthorized")
+      throw ErrorFactories.authNoSession()
     }
 
-    const query = `
-      SELECT 
-        id, name, description, type, duration_days,
-        materials, goals, is_active, created_at, updated_at
-      FROM intervention_programs
-      WHERE id = $1
-    `;
-    
-    const result = await executeSQL<any>(query, [
-      { name: '1', value: { longValue: id } }
-    ]);
+    const result = await db
+      .select()
+      .from(interventionPrograms)
+      .where(eq(interventionPrograms.id, id))
+      .limit(1)
 
     if (!result || result.length === 0) {
-      return { isSuccess: false, message: 'Program not found' };
+      timer({ status: "success" })
+      log.info("Program not found", { programId: id })
+      throw ErrorFactories.notFound('Program not found')
     }
 
     const row = result[0];
     const program: InterventionProgram = {
-      id: row.id as number,
-      name: row.name as string,
-      description: row.description as string | undefined,
+      id: row.id,
+      name: row.name,
+      description: row.description || undefined,
       type: row.type as InterventionType,
-      duration_days: row.durationDays as number | undefined,
-      materials: row.materials as string | undefined,
-      goals: row.goals as string | undefined,
-      is_active: row.isActive as boolean,
-      created_at: new Date(row.createdAt as string),
-      updated_at: new Date(row.updatedAt as string),
+      duration_days: row.durationDays || undefined,
+      materials: row.materials || undefined,
+      goals: row.goals || undefined,
+      is_active: row.isActive,
+      created_at: new Date(row.createdAt),
+      updated_at: new Date(row.updatedAt),
     };
 
-    return { isSuccess: true, message: 'Program fetched successfully', data: program };
+    timer({ status: "success" })
+    log.info("Program retrieved successfully", { programId: id })
+    return createSuccess(program, 'Program fetched successfully')
   } catch (error) {
-    // Error logged: Error fetching intervention program
-    return { isSuccess: false, message: 'Failed to fetch intervention program' };
+    timer({ status: "error" })
+    return handleError(error, "Failed to fetch intervention program", {
+      context: "getInterventionProgramByIdAction",
+      requestId,
+      operation: "getProgram"
+    })
   }
 }
 
