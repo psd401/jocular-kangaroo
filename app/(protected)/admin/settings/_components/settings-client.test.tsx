@@ -54,12 +54,12 @@ describe('SettingsClient', () => {
     render(<SettingsClient initialSettings={mockSettings} />)
 
     // Open the form
-    const addButton = screen.getByText('Add Setting')
+    const addButton = screen.getByRole('button', { name: 'Add Setting' })
     fireEvent.click(addButton)
 
     // Check that dialog is open
     await waitFor(() => {
-      expect(screen.getByText('Add Setting')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Add Setting' })).toBeInTheDocument()
     })
 
     // Fill the form
@@ -106,12 +106,12 @@ describe('SettingsClient', () => {
     render(<SettingsClient initialSettings={mockSettings} />)
 
     // Open the form
-    const addButton = screen.getByText('Add Setting')
+    const addButton = screen.getByRole('button', { name: 'Add Setting' })
     fireEvent.click(addButton)
 
     // Check that dialog is open
     await waitFor(() => {
-      expect(screen.getByText('Add Setting')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Add Setting' })).toBeInTheDocument()
     })
 
     // Fill the form
