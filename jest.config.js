@@ -12,12 +12,19 @@ const customJestConfig = {
   testEnvironment: 'jest-environment-jsdom',
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
-    'lucide-react': '<rootDir>/tests/mocks/lucide-react.js'
+    'lucide-react': '<rootDir>/tests/mocks/lucide-react.js',
+    '^nanoid$': '<rootDir>/tests/mocks/nanoid.js'
   },
   setupFiles: ['<rootDir>/.jest/setEnvVars.js'],
   transformIgnorePatterns: [
-    'node_modules/(?!(lucide-react|nanoid)/)'
-  ]
+    'node_modules/(?!(lucide-react|nanoid|@aws-sdk)/)'
+  ],
+  extensionsToTreatAsEsm: ['.ts', '.tsx'],
+  globals: {
+    'ts-jest': {
+      useESM: true
+    }
+  }
 };
 
 module.exports = createJestConfig(customJestConfig); 
