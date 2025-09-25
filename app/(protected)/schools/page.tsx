@@ -8,7 +8,7 @@ export default async function SchoolsPage() {
   const currentUserResult = await getCurrentUserAction();
   if (!currentUserResult.isSuccess || !currentUserResult.data) {
     return (
-      <div className="p-8">
+      <div>
         <Card>
           <CardHeader>
             <CardTitle>Unauthorized</CardTitle>
@@ -24,7 +24,7 @@ export default async function SchoolsPage() {
   const hasAccess = await hasToolAccess(currentUserResult.data.user.id, 'schools');
   if (!hasAccess) {
     return (
-      <div className="p-8">
+      <div>
         <Card>
           <CardHeader>
             <CardTitle>Access Denied</CardTitle>
@@ -38,7 +38,7 @@ export default async function SchoolsPage() {
   }
 
   return (
-    <div className="space-y-6 p-8 pt-6">
+    <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">School Management</h1>
         <p className="text-muted-foreground">
