@@ -286,6 +286,3 @@ export const migrationLog = pgTable('migration_log', {
   success: boolean('success').notNull(),
   errorMessage: text('error_message')
 });
-
-// Export all relations
-export * from './relations';
