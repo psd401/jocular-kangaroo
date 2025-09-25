@@ -74,18 +74,43 @@ interface UserResponse {
 const data: UserResponse = await response.json()
 ```
 
-### Database Queries
+### Database Queries (Modern Drizzle Approach)
 
-Use existing types from the schema:
+Use Drizzle ORM with automatic type inference and casing transformation:
 
 ```typescript
+import { db } from "@/lib/db/drizzle-client"
+import { users } from "@/src/db/schema"
+import { eq } from "drizzle-orm"
+
+// ❌ Bad - Direct SQL without types
+const result: any[] = await executeSQL("SELECT * FROM users")
+
+// ✅ Good - Drizzle with automatic type inference and casing
+const userList = await db.select().from(users).where(eq(users.isActive, true))
+// TypeScript automatically knows:
+// - userList: Array<{ id: number; firstName: string | null; createdAt: Date; ... }>
+// - Properties are camelCase (firstName, createdAt)
+// - Database uses snake_case (first_name, created_at)
+
+// ✅ Good - Complex query with relations
+const userWithRoles = await db.query.users.findFirst({
+  where: eq(users.cognitoSub, sub),
+  with: {
+    userRoles: {
+      with: {
+        role: true
+      }
+    }
+  }
+})
+// Full type safety for nested relations!
+```
+
+**Legacy approach** (being phased out):
+```typescript
 import { SelectUser, InsertUser } from "@/types/schema-types"
-
-// Bad
-const users: any[] = await executeSQL(query)
-
-// Good
-const users: SelectUser[] = await executeSQL(query)
+const users: SelectUser[] = await executeSQL(query) // Manual typing required
 ```
 
 ### AWS SDK Parameters

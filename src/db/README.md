@@ -53,10 +53,33 @@ This directory contains the complete type-safe database schema definitions gener
 
 ## Usage
 
+### Modern Drizzle ORM with Automatic Casing
+
 ```typescript
+import { db } from '@/lib/db/drizzle-client';
 import { users, students, interventions } from '@/src/db/schema';
 import { User, Student, NewIntervention } from '@/src/db/types';
+import { eq, and, desc } from 'drizzle-orm';
+
+// ✅ Automatic snake_case (DB) ↔ camelCase (TypeScript) transformation
+const user = await db.select().from(users).where(eq(users.cognitoSub, 'abc123'));
+console.log(user[0].firstName); // Automatic camelCase property!
+
+// ✅ Complex queries with relations
+const studentWithInterventions = await db.query.students.findFirst({
+  where: eq(students.id, studentId),
+  with: {
+    interventions: {
+      orderBy: desc(interventions.createdAt)
+    }
+  }
+});
 ```
+
+### Configuration (Automatically Enabled)
+- **Database columns**: snake_case format (`first_name`, `created_at`, `user_id`)
+- **TypeScript properties**: camelCase format (`firstName`, `createdAt`, `userId`)
+- **Transformation**: Automatic via `casing: "snake_case"` in `drizzle.config.ts` and `drizzle-client.ts`
 
 ## Relations
 
