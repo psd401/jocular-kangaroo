@@ -11,6 +11,13 @@ npm run build              # Build for production
 npm run lint               # MUST pass before commit
 npm run typecheck          # MUST pass before commit
 
+# Database (Drizzle ORM)
+npm run db:studio          # Visual database browser
+npm run db:generate        # Generate migrations
+npm run db:push            # Push schema changes
+npm run db:pull            # Pull schema from database
+npm run db:test-casing     # Test automatic casing transformation
+
 # Infrastructure (from /infra)
 cd infra && npx cdk deploy --all                                # Deploy all stacks
 cd infra && npx cdk deploy JocularKangaroo-FrontendStack-Dev   # Deploy single stack
@@ -45,55 +52,72 @@ cd infra && npx cdk deploy JocularKangaroo-FrontendStack-Dev   # Deploy single s
 
 ## 🗄️ Database Operations
 
-**Always use MCP tools to verify structure**:
+**Modern Approach - Drizzle ORM with Automatic Casing**:
+```typescript
+import { db } from "@/lib/db/drizzle-client"
+import { users } from "@/src/db/schema"
+import { eq } from "drizzle-orm"
+
+// ✅ Automatic snake_case ↔ camelCase transformation
+const user = await db.select().from(users).where(eq(users.firstName, "John"))
+console.log(user[0].firstName)  // Automatic camelCase result!
+console.log(user[0].createdAt)  // No manual transformation needed!
+```
+
+**Legacy Approach - Direct Data API** (⚠️ Being phased out):
 ```bash
+# Use MCP tools to verify structure when needed
 mcp__awslabs_postgres-mcp-server__get_table_schema
 mcp__awslabs_postgres-mcp-server__run_query
 ```
 
-**Data API Parameters**:
-- `stringValue`, `longValue`, `booleanValue`, `doubleValue`, `isNull`
+**Casing Configuration** (✅ Automatically configured):
+- **Database columns**: snake_case (`first_name`, `created_at`, `user_id`)
+- **TypeScript properties**: camelCase (`firstName`, `createdAt`, `userId`)
+- **Automatic transformation**: Enabled via `casing: "snake_case"` in drizzle.config.ts and drizzle-client.ts
 
-**Field Transformation** (DB returns snake_case, app uses camelCase):
-```typescript
-import { snakeToCamel } from "@/lib/db/field-mapper"
-
-// Database returns: { user_id: 1, created_at: "2025-01-01" }
-// App expects: { userId: 1, createdAt: "2025-01-01" }
-const results = await executeSQL("SELECT user_id, created_at FROM users")
-const transformed = results.map(row => snakeToCamel<UserType>(row))
-```
-
-## 📝 Server Action Template
+## 📝 Server Action Template (Modern Drizzle Approach)
 
 ```typescript
 "use server"
 import { createLogger, generateRequestId, startTimer, sanitizeForLogging } from "@/lib/logger"
 import { handleError, ErrorFactories, createSuccess } from "@/lib/error-utils"
 import { getServerSession } from "@/lib/auth/server-session"
+import { db } from "@/lib/db/drizzle-client"
+import { users } from "@/src/db/schema"
+import { eq } from "drizzle-orm"
 
 export async function actionName(params: ParamsType): Promise<ActionState<ReturnType>> {
   const requestId = generateRequestId()
   const timer = startTimer("actionName")
   const log = createLogger({ requestId, action: "actionName" })
-  
+
   try {
     log.info("Action started", { params: sanitizeForLogging(params) })
-    
+
     // Auth check
     const session = await getServerSession()
     if (!session) {
       log.warn("Unauthorized")
       throw ErrorFactories.authNoSession()
     }
-    
-    // Business logic
-    const result = await executeSQL("SELECT * FROM ...", params)
-    
+
+    // ✅ Modern Drizzle query with automatic casing
+    const result = await db
+      .select()
+      .from(users)
+      .where(eq(users.cognitoSub, session.user.sub))
+
+    // Result automatically has camelCase properties! 🎉
+    log.info("Query result", {
+      userCount: result.length,
+      firstName: result[0]?.firstName // Automatic camelCase
+    })
+
     timer({ status: "success" })
     log.info("Action completed")
     return createSuccess(result, "Success message")
-    
+
   } catch (error) {
     timer({ status: "error" })
     return handleError(error, "User-friendly error", {
@@ -143,9 +167,10 @@ tools to resolve library id and get library docs without me having to explicitly
 
 ### Database Standards:
 - **NEVER** modify migration files 001-005
-- **ALWAYS** add new migrations as 006+ 
-- **VERIFY** schema with MCP tools before coding
-- **USE** parameterized queries only
+- **ALWAYS** add new migrations as 006+
+- **USE** Drizzle ORM with automatic casing (snake_case DB ↔ camelCase TS)
+- **VERIFY** schema with MCP tools or `src/db/schema.ts` before coding
+- **PREFER** Drizzle queries over direct SQL for type safety
 
 ## 🚨 Common Pitfalls
 

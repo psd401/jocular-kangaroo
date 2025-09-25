@@ -2,6 +2,7 @@ import { drizzle } from 'drizzle-orm/aws-data-api/pg';
 import { RDSDataClient } from '@aws-sdk/client-rds-data';
 import { fromNodeProviderChain } from '@aws-sdk/credential-providers';
 import { createLogger } from '@/lib/logger';
+import * as schema from '@/src/db/schema';
 
 const log = createLogger({ context: 'drizzle-client' });
 
@@ -107,6 +108,8 @@ export function getDb() {
         database: config.database,
         secretArn: config.secretArn,
         resourceArn: config.resourceArn,
+        schema, // 🎯 Include schema for type safety and relations
+        casing: 'snake_case', // 🎯 Enable automatic snake_case to camelCase transformation
         logger: process.env.DRIZZLE_LOG_LEVEL === 'debug'
       });
     } catch (error) {
