@@ -18,6 +18,7 @@ export default defineConfig({
     table: "drizzle_migrations",
     schema: "public"
   },
+  casing: "snake_case", // 🎯 Enable automatic snake_case to camelCase transformation
   verbose: true,
   strict: true
 });
