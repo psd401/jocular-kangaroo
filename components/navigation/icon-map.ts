@@ -14,6 +14,21 @@ import {
   IconUser,
   IconRobot,
   IconTools,
+  IconUsers,
+  IconClipboardList,
+  IconBook,
+  IconCalendar,
+  IconSchool,
+  IconSettings,
+  IconStethoscope,
+  IconChartPie,
+  IconBooks,
+  IconCalendarEvent,
+  IconBuilding,
+  IconAdjustments,
+  IconSchoolBell,
+  IconFirstAidKit,
+  IconPresentation,
 } from '@tabler/icons-react';
 
 export const iconMap = {
@@ -31,7 +46,23 @@ export const iconMap = {
   IconUsersGroup,
   IconUser,
   IconRobot,
-  IconTools
+  IconTools,
+  // Better icons for navigation items
+  IconUsers,
+  IconClipboardList,
+  IconBook,
+  IconCalendar,
+  IconSchool,
+  IconSettings,
+  IconStethoscope,
+  IconChartPie,
+  IconBooks,
+  IconCalendarEvent,
+  IconBuilding,
+  IconAdjustments,
+  IconSchoolBell,
+  IconFirstAidKit,
+  IconPresentation,
 };
 
 export type IconName = keyof typeof iconMap; 
