@@ -5,7 +5,7 @@ A comprehensive web application for tracking and managing student interventions 
 ## Technology Stack
 
 - 🔒 **Authentication**: [AWS Cognito](https://aws.amazon.com/cognito/) + NextAuth v5 with role-based access
-- 🗄️ **Database**: [AWS RDS Aurora Serverless v2](https://aws.amazon.com/rds/aurora/) (PostgreSQL)
+- 🗄️ **Database**: [AWS RDS Aurora Serverless v2](https://aws.amazon.com/rds/aurora/) (PostgreSQL) with Drizzle ORM
 - 🎨 **UI**: [Shadcn](https://ui.shadcn.com) components with Tailwind CSS v4
 - 🚀 **Deployment**: [AWS Amplify](https://aws.amazon.com/amplify) with SSR support
 - 🏗️ **Infrastructure**: [AWS CDK](https://aws.amazon.com/cdk/) v2 for all resources
@@ -112,13 +112,38 @@ npm test -- path/to/test.test.ts
 
 ## Database Management
 
-The project uses AWS RDS Data API for database operations:
+The project uses Drizzle ORM with AWS RDS Data API for type-safe database operations:
 
-- Generate migrations: `npm run db:generate`
-- Push schema changes: `npm run db:push`
-- Open Drizzle Studio: `npm run db:studio`
+### Drizzle ORM Commands
 
-For production, all database operations go through the RDS Data API using the `executeSQL` function from `/lib/db/data-api-adapter.ts`.
+- **Check configuration**: `npm run db:check` - Validate drizzle.config.ts
+- **Pull schema**: `npm run db:pull` - Introspect database and generate schema
+- **Generate migrations**: `npm run db:generate` - Create SQL migrations from schema changes
+- **Apply migrations**: `npm run db:migrate` - Apply pending migrations to database
+- **Push schema**: `npm run db:push` - Push schema changes directly (development only)
+- **Open Drizzle Studio**: `npm run db:studio` - Visual database browser
+
+### Database Setup
+
+1. Ensure environment variables are configured in `.env.local`:
+   ```
+   RDS_RESOURCE_ARN=arn:aws:rds:us-east-1:123456789012:cluster:your-cluster-name
+   RDS_SECRET_ARN=arn:aws:secretsmanager:us-east-1:123456789012:secret:your-secret-name
+   RDS_DATABASE_NAME=your_database_name
+   AWS_REGION=us-east-1
+   ```
+
+2. Test the connection:
+   ```bash
+   npm run ts-node scripts/test-drizzle-connection.ts
+   ```
+
+3. Pull existing schema from database:
+   ```bash
+   npm run db:pull
+   ```
+
+The project is migrating from direct RDS Data API calls to Drizzle ORM for improved type safety and developer experience.
 
 ## Deployment
 
