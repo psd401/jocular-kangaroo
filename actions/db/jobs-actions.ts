@@ -6,7 +6,7 @@ import { createLogger, generateRequestId, startTimer, sanitizeForLogging } from 
 import { db } from "@/lib/db/drizzle-client"
 import { jobs } from "@/src/db/schema"
 import { eq } from "drizzle-orm"
-import { handleError, createSuccess, ErrorFactories } from "@/lib/error-utils"
+import { handleError, createSuccess, createError } from "@/lib/error-utils"
 
 export async function createJobAction(
   job: Omit<InsertJob, "id" | "createdAt" | "updatedAt">
@@ -20,21 +20,21 @@ export async function createJobAction(
 
     if (!job.userId) {
       log.warn("Missing userId")
-      throw ErrorFactories.validation("A userId must be provided to create a job.")
+      throw createError("A userId must be provided to create a job.", { code: "VALIDATION_ERROR" })
     }
 
     // Convert userId to number if it's a string
     const userIdNum = typeof job.userId === 'string' ? parseInt(job.userId, 10) : job.userId;
     if (isNaN(userIdNum)) {
       log.warn("Invalid userId", { userId: job.userId })
-      throw ErrorFactories.validation("Invalid userId provided.")
+      throw createError("Invalid userId provided.", { code: "VALIDATION_ERROR" })
     }
 
     const result = await db
       .insert(jobs)
       .values({
         userId: userIdNum,
-        status: job.status || 'pending',
+        status: (job.status as 'pending' | 'running' | 'completed' | 'failed') || 'pending',
         jobType: job.type,
         inputData: job.input ? JSON.parse(job.input) : null,
         outputData: job.output ? JSON.parse(job.output) : null,
@@ -43,7 +43,7 @@ export async function createJobAction(
       .returning()
 
     if (!result || result.length === 0) {
-      throw ErrorFactories.database("Failed to create job: no record returned.")
+      throw createError("Failed to create job: no record returned.", { code: "DATABASE_ERROR" })
     }
 
     const newJob = result[0];
@@ -65,9 +65,7 @@ export async function createJobAction(
   } catch (error) {
     timer({ status: "error" })
     return handleError(error, "Failed to create job", {
-      context: "createJobAction",
-      requestId,
-      operation: "createJob"
+      context: "createJobAction"
     })
   }
 }
@@ -83,7 +81,7 @@ export async function getJobAction(id: string): Promise<ActionState<SelectJob>> 
     const idNum = parseInt(id, 10);
     if (isNaN(idNum)) {
       log.warn("Invalid job ID", { id })
-      throw ErrorFactories.validation("Invalid job ID")
+      throw createError("Invalid job ID", { code: "VALIDATION_ERROR" })
     }
 
     const result = await db
@@ -95,7 +93,7 @@ export async function getJobAction(id: string): Promise<ActionState<SelectJob>> 
     if (!result || result.length === 0) {
       timer({ status: "success" })
       log.info("Job not found", { jobId: idNum })
-      throw ErrorFactories.notFound("Job not found")
+      throw createError("Job not found", { code: "NOT_FOUND" })
     }
 
     const job = result[0];
@@ -117,9 +115,7 @@ export async function getJobAction(id: string): Promise<ActionState<SelectJob>> 
   } catch (error) {
     timer({ status: "error" })
     return handleError(error, "Failed to get job", {
-      context: "getJobAction",
-      requestId,
-      operation: "getJob"
+      context: "getJobAction"
     })
   }
 }
@@ -135,7 +131,7 @@ export async function getUserJobsAction(userId: string): Promise<ActionState<Sel
     const userIdNum = parseInt(userId, 10);
     if (isNaN(userIdNum)) {
       log.warn("Invalid user ID", { userId })
-      throw ErrorFactories.validation("Invalid user ID")
+      throw createError("Invalid user ID", { code: "VALIDATION_ERROR" })
     }
 
     const result = await db
@@ -161,9 +157,7 @@ export async function getUserJobsAction(userId: string): Promise<ActionState<Sel
   } catch (error) {
     timer({ status: "error" })
     return handleError(error, "Failed to get jobs", {
-      context: "getUserJobsAction",
-      requestId,
-      operation: "getUserJobs"
+      context: "getUserJobsAction"
     })
   }
 }
@@ -182,14 +176,14 @@ export async function updateJobAction(
     const idNum = parseInt(id, 10);
     if (isNaN(idNum)) {
       log.warn("Invalid job ID", { id })
-      throw ErrorFactories.validation("Invalid job ID")
+      throw createError("Invalid job ID", { code: "VALIDATION_ERROR" })
     }
 
     // Build update object
     const updateData: Partial<typeof jobs.$inferInsert> = {}
 
     if (data.status !== undefined) {
-      updateData.status = data.status
+      updateData.status = data.status as 'pending' | 'running' | 'completed' | 'failed'
     }
     if (data.output !== undefined) {
       updateData.outputData = data.output ? JSON.parse(data.output) : null
@@ -206,7 +200,7 @@ export async function updateJobAction(
 
     if (Object.keys(updateData).length === 0) {
       log.warn("No valid fields to update")
-      throw ErrorFactories.validation("No valid fields to update")
+      throw createError("No valid fields to update", { code: "VALIDATION_ERROR" })
     }
 
     const result = await db
@@ -216,7 +210,7 @@ export async function updateJobAction(
       .returning()
 
     if (!result || result.length === 0) {
-      throw ErrorFactories.notFound("Failed to update job or job not found.")
+      throw createError("Failed to update job or job not found.", { code: "NOT_FOUND" })
     }
 
     const updatedJob = result[0];
@@ -238,9 +232,7 @@ export async function updateJobAction(
   } catch (error) {
     timer({ status: "error" })
     return handleError(error, "Failed to update job", {
-      context: "updateJobAction",
-      requestId,
-      operation: "updateJob"
+      context: "updateJobAction"
     })
   }
 }
@@ -256,7 +248,7 @@ export async function deleteJobAction(id: string): Promise<ActionState<void>> {
     const idNum = parseInt(id, 10);
     if (isNaN(idNum)) {
       log.warn("Invalid job ID", { id })
-      throw ErrorFactories.validation("Invalid job ID")
+      throw createError("Invalid job ID", { code: "VALIDATION_ERROR" })
     }
 
     await db
@@ -269,9 +261,7 @@ export async function deleteJobAction(id: string): Promise<ActionState<void>> {
   } catch (error) {
     timer({ status: "error" })
     return handleError(error, "Failed to delete job", {
-      context: "deleteJobAction",
-      requestId,
-      operation: "deleteJob"
+      context: "deleteJobAction"
     })
   }
 } 

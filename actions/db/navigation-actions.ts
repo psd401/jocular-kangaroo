@@ -5,7 +5,7 @@ import { navigationItems } from "@/src/db/schema"
 import { ActionState } from "@/types"
 import type { InsertNavigationItem, SelectNavigationItem } from "@/types/db-types"
 import { createLogger, generateRequestId, startTimer, sanitizeForLogging } from "@/lib/logger"
-import { handleError, createSuccess, ErrorFactories } from "@/lib/error-utils"
+import { handleError, createSuccess, createError } from "@/lib/error-utils"
 import { eq } from "drizzle-orm"
 
 export async function getNavigationItemsAction(): Promise<ActionState<SelectNavigationItem[]>> {
@@ -24,17 +24,16 @@ export async function getNavigationItemsAction(): Promise<ActionState<SelectNavi
     const items: SelectNavigationItem[] = result.map(item => ({
       id: item.id,
       label: item.label,
-      icon: item.icon || undefined,
-      link: item.link || undefined,
-      description: item.description || undefined,
+      icon: item.icon || '',
+      link: item.link,
+      description: item.description,
       type: item.type,
-      parentId: item.parentId || undefined,
-      toolId: item.toolId || undefined,
-      requiresRole: item.requiresRole || undefined,
-      position: item.position,
+      parentId: item.parentId,
+      toolId: item.toolId,
+      requiresRole: item.requiresRole,
+      position: item.position ?? 0,
       isActive: item.isActive,
       createdAt: item.createdAt,
-      toolIdentifier: item.toolIdentifier || undefined,
     }))
 
     timer({ status: "success" })
@@ -43,9 +42,7 @@ export async function getNavigationItemsAction(): Promise<ActionState<SelectNavi
   } catch (error) {
     timer({ status: "error" })
     return handleError(error, "Failed to get navigation items", {
-      context: "getNavigationItemsAction",
-      requestId,
-      operation: "getNavigationItems"
+      context: "getNavigationItemsAction"
     })
   }
 }
@@ -67,35 +64,33 @@ export async function createNavigationItemAction(
         icon: data.icon || null,
         link: data.link || null,
         description: data.description || null,
-        type: data.type || 'page',
+        type: (data.type as 'link' | 'section' | 'page') || 'page',
         parentId: data.parentId ? Number(data.parentId) : null,
         toolId: data.toolId ? Number(data.toolId) : null,
         requiresRole: data.requiresRole || null,
         position: data.position || 0,
         isActive: data.isActive ?? true,
-        toolIdentifier: data.toolIdentifier || null,
       })
       .returning()
 
     if (!result || result.length === 0) {
-      throw ErrorFactories.database("Failed to create navigation item")
+      throw createError("Failed to create navigation item", { code: "DATABASE_ERROR" })
     }
 
     const newItem = result[0];
     const selectItem: SelectNavigationItem = {
       id: newItem.id,
       label: newItem.label,
-      icon: newItem.icon || undefined,
-      link: newItem.link || undefined,
-      description: newItem.description || undefined,
+      icon: newItem.icon || '',
+      link: newItem.link,
+      description: newItem.description,
       type: newItem.type,
-      parentId: newItem.parentId || undefined,
-      toolId: newItem.toolId || undefined,
-      requiresRole: newItem.requiresRole || undefined,
-      position: newItem.position,
+      parentId: newItem.parentId,
+      toolId: newItem.toolId,
+      requiresRole: newItem.requiresRole,
+      position: newItem.position ?? 0,
       isActive: newItem.isActive,
       createdAt: newItem.createdAt,
-      toolIdentifier: newItem.toolIdentifier || undefined,
     }
 
     timer({ status: "success" })
@@ -104,9 +99,7 @@ export async function createNavigationItemAction(
   } catch (error) {
     timer({ status: "error" })
     return handleError(error, "Failed to create navigation item", {
-      context: "createNavigationItemAction",
-      requestId,
-      operation: "createNavigationItem"
+      context: "createNavigationItemAction"
     })
   }
 }
@@ -128,13 +121,12 @@ export async function updateNavigationItemAction(
     if (data.icon !== undefined) updateData.icon = data.icon || null
     if (data.link !== undefined) updateData.link = data.link || null
     if (data.description !== undefined) updateData.description = data.description || null
-    if (data.type !== undefined) updateData.type = data.type
+    if (data.type !== undefined) updateData.type = data.type as 'link' | 'section' | 'page'
     if (data.parentId !== undefined) updateData.parentId = data.parentId || null
     if (data.toolId !== undefined) updateData.toolId = data.toolId || null
     if (data.requiresRole !== undefined) updateData.requiresRole = data.requiresRole || null
     if (data.position !== undefined) updateData.position = data.position
     if (data.isActive !== undefined) updateData.isActive = data.isActive
-    if (data.toolIdentifier !== undefined) updateData.toolIdentifier = data.toolIdentifier || null
 
     const result = await db
       .update(navigationItems)
@@ -143,24 +135,23 @@ export async function updateNavigationItemAction(
       .returning()
 
     if (!result || result.length === 0) {
-      throw ErrorFactories.notFound("Navigation item not found")
+      throw createError("Navigation item not found", { code: "NOT_FOUND" })
     }
 
     const updatedItem = result[0];
     const selectItem: SelectNavigationItem = {
       id: updatedItem.id,
       label: updatedItem.label,
-      icon: updatedItem.icon || undefined,
-      link: updatedItem.link || undefined,
-      description: updatedItem.description || undefined,
+      icon: updatedItem.icon || '',
+      link: updatedItem.link,
+      description: updatedItem.description,
       type: updatedItem.type,
-      parentId: updatedItem.parentId || undefined,
-      toolId: updatedItem.toolId || undefined,
-      requiresRole: updatedItem.requiresRole || undefined,
-      position: updatedItem.position,
+      parentId: updatedItem.parentId,
+      toolId: updatedItem.toolId,
+      requiresRole: updatedItem.requiresRole,
+      position: updatedItem.position ?? 0,
       isActive: updatedItem.isActive,
       createdAt: updatedItem.createdAt,
-      toolIdentifier: updatedItem.toolIdentifier || undefined,
     }
 
     timer({ status: "success" })
@@ -169,9 +160,7 @@ export async function updateNavigationItemAction(
   } catch (error) {
     timer({ status: "error" })
     return handleError(error, "Failed to update navigation item", {
-      context: "updateNavigationItemAction",
-      requestId,
-      operation: "updateNavigationItem"
+      context: "updateNavigationItemAction"
     })
   }
 }
@@ -196,9 +185,7 @@ export async function deleteNavigationItemAction(
   } catch (error) {
     timer({ status: "error" })
     return handleError(error, "Failed to delete navigation item", {
-      context: "deleteNavigationItemAction",
-      requestId,
-      operation: "deleteNavigationItem"
+      context: "deleteNavigationItemAction"
     })
   }
 }

@@ -5,7 +5,7 @@ import { db } from "@/lib/db/drizzle-client"
 import { settings } from "@/src/db/schema"
 import { hasRole } from "@/lib/auth/role-helpers"
 import { ActionState } from "@/types/actions-types"
-import { createError, createSuccess, handleError, ErrorFactories } from "@/lib/error-utils"
+import { createError, createSuccess, handleError } from "@/lib/error-utils"
 import { createLogger, generateRequestId, startTimer, sanitizeForLogging } from "@/lib/logger"
 import { revalidateSettingsCache } from "@/lib/settings-manager"
 import { eq, sql } from "drizzle-orm"
@@ -48,14 +48,14 @@ export async function getSettingsAction(): Promise<ActionState<Setting[]>> {
     const session = await getServerSession()
     if (!session) {
       log.warn("Unauthorized")
-      throw ErrorFactories.authNoSession()
+      throw createError("No session", { code: "UNAUTHORIZED" })
     }
 
     // Check if user is an administrator
     const isAdmin = await hasRole("administrator")
     if (!isAdmin) {
-      log.warn("Access denied - not administrator", { userId: session.user.sub })
-      throw ErrorFactories.authInsufficientPermissions("Only administrators can view settings")
+      log.warn("Access denied - not administrator", { userId: (session as any).user?.sub })
+      throw createError("Only administrators can view settings", { code: "FORBIDDEN" })
     }
 
     const result = await db
@@ -89,9 +89,7 @@ export async function getSettingsAction(): Promise<ActionState<Setting[]>> {
   } catch (error) {
     timer({ status: "error" })
     return handleError(error, "Failed to retrieve settings", {
-      context: "getSettingsAction",
-      requestId,
-      operation: "getSettings"
+      context: "getSettingsAction"
     })
   }
 }
@@ -140,14 +138,14 @@ export async function upsertSettingAction(input: CreateSettingInput): Promise<Ac
     const session = await getServerSession()
     if (!session) {
       log.warn("Unauthorized")
-      throw ErrorFactories.authNoSession()
+      throw createError("No session", { code: "UNAUTHORIZED" })
     }
 
     // Check if user is an administrator
     const isAdmin = await hasRole("administrator")
     if (!isAdmin) {
-      log.warn("Access denied - not administrator", { userId: session.user.sub })
-      throw ErrorFactories.authInsufficientPermissions("Only administrators can manage settings")
+      log.warn("Access denied - not administrator", { userId: (session as any).user?.sub })
+      throw createError("Only administrators can manage settings", { code: "FORBIDDEN" })
     }
 
     // Use transaction for complex upsert logic
@@ -215,7 +213,7 @@ export async function upsertSettingAction(input: CreateSettingInput): Promise<Ac
           const updated = await tx
             .update(settings)
             .set({
-              value: input.value || null,
+              value: input.value || '',
               description: input.description || null,
               category: input.category || null,
               isSecret: input.isSecret || false,
@@ -254,7 +252,7 @@ export async function upsertSettingAction(input: CreateSettingInput): Promise<Ac
           .insert(settings)
           .values({
             key: input.key,
-            value: input.value || null,
+            value: input.value || '',
             description: input.description || null,
             category: input.category || null,
             isSecret: input.isSecret || false
@@ -298,9 +296,7 @@ export async function upsertSettingAction(input: CreateSettingInput): Promise<Ac
   } catch (error) {
     timer({ status: "error" })
     return handleError(error, "Failed to save setting", {
-      context: "upsertSettingAction",
-      requestId,
-      operation: "upsertSetting"
+      context: "upsertSettingAction"
     })
   }
 }
@@ -317,14 +313,14 @@ export async function deleteSettingAction(key: string): Promise<ActionState<void
     const session = await getServerSession()
     if (!session) {
       log.warn("Unauthorized")
-      throw ErrorFactories.authNoSession()
+      throw createError("No session", { code: "UNAUTHORIZED" })
     }
 
     // Check if user is an administrator
     const isAdmin = await hasRole("administrator")
     if (!isAdmin) {
-      log.warn("Access denied - not administrator", { userId: session.user.sub })
-      throw ErrorFactories.authInsufficientPermissions("Only administrators can delete settings")
+      log.warn("Access denied - not administrator", { userId: (session as any).user?.sub })
+      throw createError("Only administrators can delete settings", { code: "FORBIDDEN" })
     }
 
     await db
@@ -340,9 +336,7 @@ export async function deleteSettingAction(key: string): Promise<ActionState<void
   } catch (error) {
     timer({ status: "error" })
     return handleError(error, "Failed to delete setting", {
-      context: "deleteSettingAction",
-      requestId,
-      operation: "deleteSetting"
+      context: "deleteSettingAction"
     })
   }
 }
@@ -359,14 +353,14 @@ export async function getSettingActualValueAction(key: string): Promise<ActionSt
     const session = await getServerSession()
     if (!session) {
       log.warn("Unauthorized")
-      throw ErrorFactories.authNoSession()
+      throw createError("No session", { code: "UNAUTHORIZED" })
     }
 
     // Check if user is an administrator
     const isAdmin = await hasRole("administrator")
     if (!isAdmin) {
-      log.warn("Access denied - not administrator", { userId: session.user.sub })
-      throw ErrorFactories.authInsufficientPermissions("Only administrators can view secret values")
+      log.warn("Access denied - not administrator", { userId: (session as any).user?.sub })
+      throw createError("Only administrators can view secret values", { code: "FORBIDDEN" })
     }
 
     const result = await db
@@ -388,9 +382,7 @@ export async function getSettingActualValueAction(key: string): Promise<ActionSt
   } catch (error) {
     timer({ status: "error" })
     return handleError(error, "Failed to retrieve setting value", {
-      context: "getSettingActualValueAction",
-      requestId,
-      operation: "getActualValue"
+      context: "getSettingActualValueAction"
     })
   }
 }
@@ -407,14 +399,14 @@ export async function testSettingConnectionAction(key: string, value: string): P
     const session = await getServerSession()
     if (!session) {
       log.warn("Unauthorized")
-      throw ErrorFactories.authNoSession()
+      throw createError("No session", { code: "UNAUTHORIZED" })
     }
 
     // Check if user is an administrator
     const isAdmin = await hasRole("administrator")
     if (!isAdmin) {
-      log.warn("Access denied - not administrator", { userId: session.user.sub })
-      throw ErrorFactories.authInsufficientPermissions("Only administrators can test settings")
+      log.warn("Access denied - not administrator", { userId: (session as any).user?.sub })
+      throw createError("Only administrators can test settings", { code: "FORBIDDEN" })
     }
 
     // Test based on the key type
@@ -451,9 +443,7 @@ export async function testSettingConnectionAction(key: string, value: string): P
   } catch (error) {
     timer({ status: "error" })
     return handleError(error, "Failed to test setting connection", {
-      context: "testSettingConnectionAction",
-      requestId,
-      operation: "testConnection"
+      context: "testSettingConnectionAction"
     })
   }
 }
