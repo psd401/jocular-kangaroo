@@ -155,10 +155,11 @@ tools to resolve library id and get library docs without me having to explicitly
 3. **NO EXCEPTIONS**: Both must pass with zero errors
 
 ### Logging Standards:
-- **NEVER** use `console.log`, `console.error`, `console.warn`
+- **NEVER** use `console.log`, `console.error`, `console.warn` in application code
 - **ALWAYS** use `createLogger()` from `@/lib/logger`
 - **REQUIRED** in server actions: `generateRequestId()` and `startTimer()`
 - **NO GENERIC** error messages like "DB error" - be specific
+- **EXCEPTION**: Lambda infrastructure code (e.g., `/infra/database/lambda/`) uses its own structured logger (`logger.ts`) optimized for CloudWatch. This logger outputs JSON to stdout which CloudWatch captures and indexes.
 
 ### TypeScript Standards:
 - **NO** `any` types anywhere in codebase

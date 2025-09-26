@@ -41,20 +41,15 @@ export class DatabaseStack extends cdk.Stack {
       allowAllOutbound: true,
     });
     
-    // For development, allow PostgreSQL access from anywhere (you should restrict this to your IP)
-    if (props.environment === 'dev') {
+    // Data API is enabled, so direct PostgreSQL port access is not required
+    // All database operations use RDS Data API which authenticates via IAM + Secrets Manager
+    // If direct psql access is needed for debugging, use AWS Systems Manager Session Manager
+
+    if (props.environment !== 'dev') {
+      // Production: only allow from within VPC (for potential bastion/admin access)
       dbSg.addIngressRule(
-        ec2.Peer.anyIpv4(), 
-        ec2.Port.tcp(5432), 
-        'Allow PostgreSQL access from anywhere (DEV ONLY)'
-      );
-      // Better practice: restrict to your IP
-      // dbSg.addIngressRule(ec2.Peer.ipv4('YOUR.IP.ADDRESS.HERE/32'), ec2.Port.tcp(5432), 'Allow PostgreSQL from my IP');
-    } else {
-      // Production: only allow from within VPC
-      dbSg.addIngressRule(
-        ec2.Peer.ipv4(vpc.vpcCidrBlock), 
-        ec2.Port.tcp(5432), 
+        ec2.Peer.ipv4(vpc.vpcCidrBlock),
+        ec2.Port.tcp(5432),
         'Allow PostgreSQL access from VPC'
       );
     }
@@ -126,7 +121,7 @@ export class DatabaseStack extends cdk.Stack {
           image: lambda.Runtime.NODEJS_20_X.bundlingImage,
           command: [
             'bash', '-c',
-            'npm install && npm run build && cp -r ../schema dist/ && cp -r dist/* /asset-output/'
+            'npm install && npm run build && cp -r ../../drizzle dist/ && cp -r dist/* /asset-output/'
           ],
           environment: {
             NPM_CONFIG_CACHE: '/tmp/.npm',
@@ -136,18 +131,16 @@ export class DatabaseStack extends cdk.Stack {
               try {
                 const execSync = require('child_process').execSync;
                 const lambdaDir = path.join(__dirname, '../database/lambda');
-                
-                // Run npm install and build
+                const drizzleDir = path.join(__dirname, '../../drizzle');
+
                 execSync('npm install', { cwd: lambdaDir, stdio: 'inherit' });
                 execSync('npm run build', { cwd: lambdaDir, stdio: 'inherit' });
-                
-                // Copy built files to output directory
+
                 execSync(`cp -r ${path.join(lambdaDir, 'dist')}/* ${outputDir}/`, { stdio: 'inherit' });
-                execSync(`cp -r ${path.join(__dirname, '../database/schema')} ${outputDir}/`, { stdio: 'inherit' });
-                
+                execSync(`cp -r ${drizzleDir} ${outputDir}/`, { stdio: 'inherit' });
+
                 return true;
               } catch {
-                // If local bundling fails, fall back to Docker
                 return false;
               }
             },
