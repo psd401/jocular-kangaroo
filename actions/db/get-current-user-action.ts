@@ -14,7 +14,7 @@ interface CurrentUserWithRoles {
   roles: { id: number; name: string; description?: string }[]
 }
 
-function getAdminEmails(): Set<string> {
+function getAdminEmails(log?: ReturnType<typeof createLogger>): Set<string> {
   const adminEmailsEnv = process.env.ADMIN_EMAILS || ''
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -24,7 +24,10 @@ function getAdminEmails(): Set<string> {
     .filter(email => {
       if (email.length === 0) return false
       if (!emailRegex.test(email)) {
-        console.warn(`Invalid email in ADMIN_EMAILS, skipping: ${email}`)
+        log?.warn('Invalid email in ADMIN_EMAILS environment variable', {
+          invalidEmail: email,
+          context: 'admin_bootstrap'
+        })
         return false
       }
       return true
@@ -33,9 +36,9 @@ function getAdminEmails(): Set<string> {
   return new Set(emails)
 }
 
-function isAdminEmail(email: string): boolean {
+function isAdminEmail(email: string, log?: ReturnType<typeof createLogger>): boolean {
   if (!email) return false
-  const adminEmails = getAdminEmails()
+  const adminEmails = getAdminEmails(log)
   return adminEmails.has(email.toLowerCase())
 }
 
@@ -102,7 +105,7 @@ export async function getCurrentUserAction(): Promise<
           .returning()
 
         // Check if user should be admin via ADMIN_EMAILS environment variable
-        const shouldBeAdmin = session.email && isAdminEmail(session.email)
+        const shouldBeAdmin = session.email && isAdminEmail(session.email, log)
 
         if (shouldBeAdmin) {
           // Assign Administrator role
@@ -159,45 +162,47 @@ export async function getCurrentUserAction(): Promise<
     }
 
     // Retroactive admin assignment for existing users in ADMIN_EMAILS whitelist
-    if (user.length > 0 && session.email && isAdminEmail(session.email)) {
-      // Check if user already has Administrator role
-      const existingAdminRole = await db
-        .select({ roleId: userRoles.roleId })
-        .from(userRoles)
-        .innerJoin(roles, eq(userRoles.roleId, roles.id))
-        .where(
-          and(
-            eq(userRoles.userId, user[0].id),
-            eq(roles.name, "Administrator")
+    if (user.length > 0 && session.email && isAdminEmail(session.email, log)) {
+      await db.transaction(async (tx) => {
+        // Check if user already has Administrator role
+        const existingAdminRole = await tx
+          .select({ roleId: userRoles.roleId })
+          .from(userRoles)
+          .innerJoin(roles, eq(userRoles.roleId, roles.id))
+          .where(
+            and(
+              eq(userRoles.userId, user[0].id),
+              eq(roles.name, "Administrator")
+            )
           )
-        )
-        .limit(1)
-
-      if (existingAdminRole.length === 0) {
-        // User is in whitelist but doesn't have admin role - grant it
-        const adminRole = await db
-          .select()
-          .from(roles)
-          .where(eq(roles.name, "Administrator"))
           .limit(1)
 
-        if (adminRole.length > 0) {
-          await db.insert(userRoles).values({
-            userId: user[0].id,
-            roleId: adminRole[0].id,
-            createdAt: new Date(),
-            updatedAt: new Date()
-          })
+        if (existingAdminRole.length === 0) {
+          // User is in whitelist but doesn't have admin role - grant it
+          const adminRole = await tx
+            .select()
+            .from(roles)
+            .where(eq(roles.name, "Administrator"))
+            .limit(1)
 
-          log.info("🔐 Admin role retroactively assigned via ADMIN_EMAILS whitelist", {
-            userId: user[0].id,
-            email: session.email,
-            source: "environment_bootstrap_retroactive"
-          })
-        } else {
-          log.error("Administrator role not found for retroactive assignment", { userId: user[0].id })
+          if (adminRole.length > 0) {
+            await tx.insert(userRoles).values({
+              userId: user[0].id,
+              roleId: adminRole[0].id,
+              createdAt: new Date(),
+              updatedAt: new Date()
+            })
+
+            log.info("🔐 Admin role retroactively assigned via ADMIN_EMAILS whitelist", {
+              userId: user[0].id,
+              email: session.email,
+              source: "environment_bootstrap_retroactive"
+            })
+          } else {
+            log.error("Administrator role not found for retroactive assignment", { userId: user[0].id })
+          }
         }
-      }
+      })
     }
 
     // Update last_sign_in_at
