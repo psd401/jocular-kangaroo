@@ -99,29 +99,171 @@ cdk deploy FrontendStack-Prod --parameters FrontendStack-Prod:BaseDomain=yourdom
 - Document all required parameters and secrets in `docs/DEPLOYMENT.md`.
 - Do not use environment variables for stack configuration—prefer parameters and secrets for reproducibility and security.
 
-## Database Development
+## Database Development with Drizzle ORM
 
-### RDS Data API Usage
-All database operations must use the RDS Data API with parameterized queries:
+### Overview
+This project uses **Drizzle ORM** for type-safe database operations with AWS RDS Data API.
+
+**Key Principles:**
+- ✅ Always use Drizzle ORM for database access
+- ✅ Never use raw SQL or direct RDS Data API calls
+- ✅ All queries are automatically type-safe and parameterized
+- ✅ Automatic snake_case ↔ camelCase transformation enabled
+
+### Basic Query Patterns
+
+#### Simple Select
 ```typescript
-// ✅ Correct - parameterized query
-await executeSQL(
-  "SELECT * FROM users WHERE id = :id",
-  [{ name: "id", value: { longValue: userId } }]
-)
+import { db } from "@/lib/db/drizzle-client"
+import { users } from "@/src/db/schema"
+import { eq } from "drizzle-orm"
 
-// ❌ Never use string concatenation
-await executeSQL(`SELECT * FROM users WHERE id = ${userId}`)
+// Select all
+const allUsers = await db.select().from(users)
+
+// Select with condition
+const user = await db.query.users.findFirst({
+  where: eq(users.cognitoSub, session.user.sub)
+})  // Fully typed, automatic camelCase!
+```
+
+#### Relational Queries
+```typescript
+// Query with relations (preferred over joins)
+const userWithRoles = await db.query.users.findFirst({
+  where: eq(users.cognitoSub, session.user.sub),
+  with: {
+    userRoles: {
+      with: {
+        role: true  // Include full role details
+      }
+    }
+  }
+})  // Result type is fully inferred!
+```
+
+#### Insert
+```typescript
+// Single insert with returning
+const newUser = await db
+  .insert(users)
+  .values({
+    cognitoSub: session.user.sub,
+    email: session.user.email,
+    firstName: "John",
+    lastName: "Doe"
+  })
+  .returning()  // Returns inserted row with generated ID
+
+// Multiple inserts
+const newStudents = await db
+  .insert(students)
+  .values([
+    { sisId: "S001", firstName: "Alice", gradeLevel: "5" },
+    { sisId: "S002", firstName: "Bob", gradeLevel: "6" }
+  ])
+  .returning()
+```
+
+#### Update
+```typescript
+import { eq } from "drizzle-orm"
+
+const updated = await db
+  .update(users)
+  .set({
+    firstName: "Jane",
+    updatedAt: new Date()
+  })
+  .where(eq(users.id, userId))
+  .returning()
+```
+
+#### Delete
+```typescript
+const deleted = await db
+  .delete(interventions)
+  .where(eq(interventions.id, interventionId))
+  .returning()
 ```
 
 ### Transaction Management
 For operations that modify multiple tables, use transactions:
 ```typescript
-await executeTransaction(async (transactionId) => {
-  await executeSQL("INSERT INTO ...", params, transactionId)
-  await executeSQL("UPDATE ...", params, transactionId)
+try {
+  await db.transaction(async (tx) => {
+    // Create intervention
+    const intervention = await tx
+      .insert(interventions)
+      .values({
+        studentId,
+        type: 'academic',
+        startDate: new Date(),
+        title: 'Academic Support'
+      })
+      .returning()
+
+    // Create first session
+    await tx
+      .insert(interventionSessions)
+      .values({
+        interventionId: intervention[0].id,
+        sessionDate: new Date(),
+        progressNotes: "Initial session",
+        recordedBy: session.user.id
+      })
+
+    // If any operation fails, all changes are rolled back
+  })
+} catch (error) {
+  // Transaction was rolled back (assuming log is from createLogger)
+  log.error("Transaction failed", { error })
+}
+```
+
+### Automatic Casing
+**Database columns**: snake_case (`first_name`, `created_at`, `cognito_sub`)
+**TypeScript properties**: camelCase (`firstName`, `createdAt`, `cognitoSub`)
+
+```typescript
+// ✅ Correct - use camelCase in code
+const user = await db.query.users.findFirst({
+  where: eq(users.firstName, "John")  // Transforms to first_name
+})
+console.log(user.firstName)  // camelCase result!
+
+// ❌ Wrong - don't use snake_case in code
+const user = await db.query.users.findFirst({
+  where: eq(users.first_name, "John")  // Type error!
 })
 ```
+
+### Schema Modifications
+
+1. **Update schema** in `src/db/schema.ts`:
+   ```typescript
+   export const newTable = pgTable('new_table', {
+     id: serial('id').primaryKey(),
+     name: varchar('name', { length: 255 }).notNull()
+   })
+   ```
+
+2. **Generate migration**:
+   ```bash
+   npm run db:generate
+   ```
+
+3. **Review generated SQL**:
+   ```bash
+   cat drizzle/0006_*.sql
+   ```
+
+4. **Apply migration**:
+   ```bash
+   npm run db:migrate
+   ```
+
+See `docs/DATABASE.md` for comprehensive database documentation.
 
 ## Server Actions Pattern
 All server actions must follow the `ActionState<T>` pattern:
@@ -145,10 +287,11 @@ export async function actionName(): Promise<ActionState<ReturnType>> {
 ## Testing
 - Run all tests before submitting a PR:
   ```sh
-  npm test
-  npm run lint
-  npm run typecheck  # Check TypeScript types
+  npm test           # Run test suite
+  npm run lint       # MUST pass - no errors allowed
+  npm run typecheck  # MUST pass - no type errors allowed
   ```
+- **CRITICAL**: Both `lint` and `typecheck` must pass with zero errors before any commit
 - Watch mode:
   ```sh
   npm run test:watch
@@ -267,4 +410,10 @@ export const config = {
 
 See `docs/DEPLOYMENT.md` for more details and examples.
 
-For more, see `CONTRIBUTING.md`. 
+## Additional Resources
+
+- **[Database Documentation](./docs/DATABASE.md)** - Comprehensive database guide
+- **[Database Migrations](./docs/DATABASE_MIGRATIONS.md)** - Migration procedures
+- **[Troubleshooting](./docs/TROUBLESHOOTING.md)** - Common issues and solutions
+- **[CLAUDE.md](./CLAUDE.md)** - AI assistant guidelines
+- **[CONTRIBUTING.md](./CONTRIBUTING.md)** - Contribution guidelines 

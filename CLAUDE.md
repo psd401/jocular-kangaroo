@@ -56,12 +56,45 @@ cd infra && npx cdk deploy JocularKangaroo-FrontendStack-Dev   # Deploy single s
 ```typescript
 import { db } from "@/lib/db/drizzle-client"
 import { users } from "@/src/db/schema"
-import { eq } from "drizzle-orm"
+import { eq, and } from "drizzle-orm"
 
-// ✅ Automatic snake_case ↔ camelCase transformation
-const user = await db.select().from(users).where(eq(users.firstName, "John"))
-console.log(user[0].firstName)  // Automatic camelCase result!
-console.log(user[0].createdAt)  // No manual transformation needed!
+// ✅ Simple query with automatic snake_case ↔ camelCase transformation
+const user = await db.query.users.findFirst({
+  where: eq(users.cognitoSub, session.user.sub)
+})  // Fully typed, automatic camelCase result!
+
+// ✅ Query with relations
+const userWithRoles = await db.query.users.findFirst({
+  where: eq(users.cognitoSub, session.user.sub),
+  with: {
+    userRoles: { with: { role: true } }  // Include nested relations
+  }
+})
+
+// ✅ Insert with returning
+const newUser = await db.insert(users).values({
+  cognitoSub: session.user.sub,
+  email: session.user.email,
+  firstName: "John",
+  lastName: "Doe"
+}).returning()  // Returns inserted row with generated ID
+
+// ✅ Update
+await db.update(users)
+  .set({ firstName: "Jane", updatedAt: new Date() })
+  .where(eq(users.id, userId))
+
+// ✅ Transaction
+await db.transaction(async (tx) => {
+  await tx.insert(interventions).values({
+    studentId,
+    type: 'academic',
+    startDate: new Date(),
+    title: 'Academic Support'
+  })
+  await tx.update(students).set({ status: 'active' }).where(eq(students.id, studentId))
+  // All or nothing - automatic rollback on error
+})
 ```
 
 **Legacy Approach - Direct Data API** (⚠️ Being phased out):
@@ -75,6 +108,12 @@ mcp__awslabs_postgres-mcp-server__run_query
 - **Database columns**: snake_case (`first_name`, `created_at`, `user_id`)
 - **TypeScript properties**: camelCase (`firstName`, `createdAt`, `userId`)
 - **Automatic transformation**: Enabled via `casing: "snake_case"` in drizzle.config.ts and drizzle-client.ts
+
+**Important Query Patterns**:
+- **ALWAYS** use `db.query.table.findFirst()` for single records (returns undefined if not found)
+- **ALWAYS** use `db.query.table.findMany()` for multiple records
+- **PREFER** relational API (`with: {}`) over manual joins
+- **NEVER** use raw SQL with user input - use Drizzle for automatic parameterization
 
 ## 📝 Server Action Template (Modern Drizzle Approach)
 
@@ -187,10 +226,18 @@ tools to resolve library id and get library docs without me having to explicitly
 **Structure:**
 ```
 /docs/
-├── DEPLOYMENT.md       # Deployment guide
-├── AUTH_SETUP.md       # Authentication setup
-└── *.md               # Various documentation
+├── DATABASE.md              # Comprehensive database architecture & patterns
+├── DATABASE_MIGRATIONS.md   # Migration procedures & troubleshooting
+├── TROUBLESHOOTING.md       # Common issues & solutions
+├── DEPLOYMENT.md            # Deployment guide
+├── DEVELOPER_GUIDE.md       # Development workflows
+└── *.md                     # Various documentation
 ```
+
+**Key Documentation for Database Work:**
+- Read `docs/DATABASE.md` for query patterns and schema organization
+- Read `docs/DATABASE_MIGRATIONS.md` for migration procedures
+- Read `docs/TROUBLESHOOTING.md` for common database issues
 
 **Maintenance:**
 - Keep docs current with code changes
