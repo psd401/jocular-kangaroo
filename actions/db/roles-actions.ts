@@ -207,36 +207,68 @@ export async function updateUserRolesAction(userId: number, roleIds: number[]): 
       return { isSuccess: false, message: 'You do not have permission to update user roles' };
     }
 
+    // Get admin role ID for validation checks
+    const adminRole = await db
+      .select({ id: roles.id })
+      .from(roles)
+      .where(eq(roles.name, 'Administrator'))
+      .limit(1);
+
+    if (adminRole.length === 0) {
+      log.error('Administrator role not found in database');
+      timer({ status: 'error' });
+      return { isSuccess: false, message: 'System configuration error: Administrator role not found' };
+    }
+
+    const adminRoleId = adminRole[0].id;
+
+    // Get target user's current roles
+    const targetUserRoles = await db
+      .select({ roleId: userRoles.roleId })
+      .from(userRoles)
+      .where(eq(userRoles.userId, userId));
+
+    const targetHasAdmin = targetUserRoles.some(r => r.roleId === adminRoleId);
+    const keepingAdmin = roleIds.includes(adminRoleId);
+
+    // Check if we're removing admin role from target user
+    if (targetHasAdmin && !keepingAdmin) {
+      log.info('Removing admin role detected', { userId, adminRoleId });
+
+      // Count total administrators in system
+      const adminCount = await db
+        .select({ userId: userRoles.userId })
+        .from(userRoles)
+        .where(eq(userRoles.roleId, adminRoleId));
+
+      if (adminCount.length <= 1) {
+        log.warn('SECURITY: Blocked removal of last administrator', {
+          targetUserId: userId,
+          currentUserId: currentUser.data.user.id,
+          adminRoleId,
+          adminCount: adminCount.length
+        });
+        timer({ status: 'error' });
+        return {
+          isSuccess: false,
+          message: 'Cannot remove the last administrator. System requires at least one admin user.'
+        };
+      }
+    }
+
     // Don't allow users to modify their own admin role
     if (userId === currentUser.data.user.id) {
       log.info('Checking self-modification of admin role', { currentUserId: userId });
 
-      const currentUserRoles = await db
-        .select({ roleId: userRoles.roleId })
-        .from(userRoles)
-        .where(eq(userRoles.userId, userId));
-
-      const adminRole = await db
-        .select({ id: roles.id })
-        .from(roles)
-        .where(eq(roles.name, 'Administrator'))
-        .limit(1);
-
-      if (adminRole.length > 0 && currentUserRoles.length > 0) {
-        const adminRoleId = adminRole[0].id;
-        const hasAdminRole = currentUserRoles.some(r => r.roleId === adminRoleId);
-        const keepingAdminRole = roleIds.includes(adminRoleId);
-
-        if (hasAdminRole && !keepingAdminRole) {
-          log.warn('Attempt to remove own administrator role', {
-            userId,
-            adminRoleId,
-            currentRoleIds: currentUserRoles.map(r => r.roleId),
-            newRoleIds: roleIds
-          });
-          timer({ status: 'error' });
-          return { isSuccess: false, message: 'Cannot remove your own administrator role' };
-        }
+      if (targetHasAdmin && !keepingAdmin) {
+        log.warn('Attempt to remove own administrator role', {
+          userId,
+          adminRoleId,
+          currentRoleIds: targetUserRoles.map(r => r.roleId),
+          newRoleIds: roleIds
+        });
+        timer({ status: 'error' });
+        return { isSuccess: false, message: 'Cannot remove your own administrator role' };
       }
     }
 
