@@ -124,14 +124,14 @@ export function mockDbDelete(
 
 export function mockTransaction<T>(
   mockDb: Record<string, unknown>,
-  implementation: (tx: Record<string, unknown>) => Promise<T>
+  customImplementation?: (callback: (tx: Record<string, unknown>) => Promise<T>) => Promise<T>
 ): void {
-  (mockDb.transaction as jest.Mock).mockImplementation(async (callback) => {
-    const txMock = createMockDb();
-    return callback(txMock);
-  });
-
-  if (implementation) {
-    (mockDb.transaction as jest.Mock).mockImplementation(implementation);
+  if (customImplementation) {
+    (mockDb.transaction as jest.Mock).mockImplementation(customImplementation);
+  } else {
+    (mockDb.transaction as jest.Mock).mockImplementation(async (callback) => {
+      const txMock = createMockDb();
+      return callback(txMock);
+    });
   }
 }

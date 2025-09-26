@@ -88,13 +88,19 @@ Mocks a DELETE operation.
 mockDbDelete(db, [{ id: 1 }]);
 ```
 
-#### `mockTransaction(db, implementation)`
+#### `mockTransaction(db, customImplementation?)`
 
-Mocks a transaction.
+Mocks a transaction. By default, it creates a mock transaction that passes a mock database to the callback. You can optionally provide a custom implementation.
 
 ```typescript
-mockTransaction(db, async (tx) => {
-  return { success: true };
+// Default behavior - automatically creates mock transaction
+mockTransaction(db);
+
+// Custom implementation
+mockTransaction(db, async (callback) => {
+  const txMock = createMockDb();
+  const result = await callback(txMock);
+  return result;
 });
 ```
 
@@ -199,14 +205,25 @@ it('should delete a user', async () => {
 
 ```typescript
 it('should handle transactions', async () => {
-  mockTransaction(db, async (tx) => {
-    return { success: true };
-  });
+  // Use default transaction mock (most common case)
+  mockTransaction(db as unknown as Record<string, unknown>);
 
   const result = await actionWithTransaction();
 
   expect(result.isSuccess).toBe(true);
   expect(db.transaction).toHaveBeenCalled();
+});
+
+// Example with custom transaction behavior
+it('should handle transaction rollback', async () => {
+  mockTransaction(db as unknown as Record<string, unknown>, async (callback) => {
+    const txMock = createMockDb();
+    throw new Error('Transaction rolled back');
+  });
+
+  const result = await actionWithTransaction();
+
+  expect(result.isSuccess).toBe(false);
 });
 ```
 

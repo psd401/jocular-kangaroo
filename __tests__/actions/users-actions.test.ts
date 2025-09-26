@@ -2,13 +2,7 @@ import { createMockDb, mockDbQuery } from '@/tests/helpers/drizzle-mock';
 import { testDataFactory } from '@/tests/helpers/test-data-factory';
 
 jest.mock('@/lib/db/drizzle-client', () => ({
-  db: {
-    select: jest.fn(),
-    insert: jest.fn(),
-    update: jest.fn(),
-    delete: jest.fn(),
-    transaction: jest.fn(),
-  },
+  db: createMockDb(),
 }));
 
 jest.mock('@/actions/db/get-current-user-action');
