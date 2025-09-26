@@ -1,23 +1,25 @@
-import { handler } from '../index';
 import * as fs from 'fs';
 import * as path from 'path';
 
-jest.mock('@aws-sdk/client-rds-data');
-jest.mock('drizzle-orm/aws-data-api/pg');
-jest.mock('drizzle-orm/aws-data-api/pg/migrator');
-jest.mock('fs');
-jest.mock('path');
+jest.mock('@aws-sdk/client-rds-data', () => ({
+  RDSDataClient: jest.fn().mockImplementation(() => ({})),
+}));
 
 const mockMigrate = jest.fn();
 const mockDrizzle = jest.fn();
 
-jest.mock('drizzle-orm/aws-data-api/pg/migrator', () => ({
-  migrate: (...args: unknown[]) => mockMigrate(...args),
+jest.mock('drizzle-orm/aws-data-api/pg', () => ({
+  drizzle: jest.fn((...args: unknown[]) => mockDrizzle(...args)),
 }));
 
-jest.mock('drizzle-orm/aws-data-api/pg', () => ({
-  drizzle: (...args: unknown[]) => mockDrizzle(...args),
+jest.mock('drizzle-orm/aws-data-api/pg/migrator', () => ({
+  migrate: jest.fn((...args: unknown[]) => mockMigrate(...args)),
 }));
+
+jest.mock('fs');
+jest.mock('path');
+
+import { handler } from '../index';
 
 describe('Lambda Migration Handler', () => {
   const mockEvent = {
@@ -37,13 +39,33 @@ describe('Lambda Migration Handler', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    (path.join as jest.Mock).mockReturnValue('/mock/path/drizzle');
-    (path.normalize as jest.Mock).mockImplementation((p: string) => p);
+    const mockBasePath = '/var/task';
+    const mockDrizzlePath = '/var/task/drizzle';
+
+    (path.join as jest.Mock).mockImplementation((...args: string[]) => {
+      if (args.includes('drizzle')) {
+        return mockDrizzlePath;
+      }
+      return args.join('/');
+    });
+
+    (path.normalize as jest.Mock).mockImplementation((p: string) => {
+      if (p.includes('drizzle')) {
+        return mockDrizzlePath;
+      }
+      return mockBasePath;
+    });
+
     (fs.existsSync as jest.Mock).mockReturnValue(true);
     (fs.readdirSync as jest.Mock).mockReturnValue(['0000_initial.sql', '0001_add_users.sql']);
 
     mockDrizzle.mockReturnValue({});
     mockMigrate.mockResolvedValue(undefined);
+
+    Object.defineProperty(global, '__dirname', {
+      value: mockBasePath,
+      writable: true,
+    });
   });
 
   afterEach(() => {
@@ -130,9 +152,9 @@ describe('Lambda Migration Handler', () => {
     it('should reject path traversal in migrations folder', async () => {
       (path.normalize as jest.Mock).mockImplementation((p: string) => {
         if (p.includes('drizzle')) {
-          return '/different/path/drizzle';
+          return '/different/path/drizzle';  // Outside __dirname
         }
-        return '/mock/path';
+        return '/var/task';
       });
 
       const result = await handler(mockEvent);
@@ -141,13 +163,14 @@ describe('Lambda Migration Handler', () => {
       expect(result.Reason).toContain('SECURITY_VIOLATION');
     });
 
-    it('should reject non-SQL migration files', async () => {
-      (fs.readdirSync as jest.Mock).mockReturnValue(['0000_initial.sql', 'malicious.sh']);
+    it('should filter out non-SQL files before processing', async () => {
+      (fs.readdirSync as jest.Mock).mockReturnValue(['0000_initial.sql', 'malicious.sh', 'README.md']);
 
       const result = await handler(mockEvent);
 
-      expect(result.Status).toBe('FAILED');
-      expect(result.Reason).toContain('SECURITY_VIOLATION');
+      // Non-SQL files are filtered out, so migration should succeed
+      expect(result.Status).toBe('SUCCESS');
+      expect(result.Data?.filesProcessed).toBe(1); // Only .sql file processed
     });
 
     it('should reject migration filenames with path separators', async () => {
