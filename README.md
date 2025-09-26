@@ -112,38 +112,147 @@ npm test -- path/to/test.test.ts
 
 ## Database Management
 
-The project uses Drizzle ORM with AWS RDS Data API for type-safe database operations:
+The project uses **Drizzle ORM** with AWS RDS Data API for fully type-safe database operations.
 
-### Drizzle ORM Commands
+### Quick Start
 
-- **Check configuration**: `npm run db:check` - Validate drizzle.config.ts
-- **Pull schema**: `npm run db:pull` - Introspect database and generate schema
-- **Generate migrations**: `npm run db:generate` - Create SQL migrations from schema changes
-- **Apply migrations**: `npm run db:migrate` - Apply pending migrations to database
-- **Push schema**: `npm run db:push` - Push schema changes directly (development only)
-- **Open Drizzle Studio**: `npm run db:studio` - Visual database browser
+```bash
+# Install Drizzle dependencies (already in package.json)
+npm install
+
+# Configure environment variables in .env.local (see .env.example)
+RDS_RESOURCE_ARN=arn:aws:rds:...
+RDS_SECRET_ARN=arn:aws:secretsmanager:...
+RDS_DATABASE_NAME=jocular_kangaroo
+
+# Pull existing schema
+npm run db:pull
+
+# Open visual database browser
+npm run db:studio
+```
+
+### Drizzle Commands
+
+| Command | Description | Use Case |
+|---------|-------------|----------|
+| `npm run db:check` | Validate drizzle.config.ts | Verify configuration |
+| `npm run db:pull` | Introspect database and generate schema | Sync local schema with database |
+| `npm run db:generate` | Create SQL migrations from schema changes | After modifying `src/db/schema.ts` |
+| `npm run db:migrate` | Apply pending migrations to database | Deploy migrations to database |
+| `npm run db:push` | Push schema changes directly | **Development only** - skip migrations |
+| `npm run db:studio` | Open Drizzle Studio (visual browser) | Explore database visually |
+| `npm run db:test-casing` | Test snake_case ↔ camelCase transformation | Verify automatic casing works |
+
+### Key Features
+
+#### 🔄 Automatic Casing Transformation
+Drizzle automatically converts between database snake_case and TypeScript camelCase:
+
+```typescript
+import { db } from "@/lib/db/drizzle-client"
+import { users } from "@/src/db/schema"
+import { eq } from "drizzle-orm"
+
+// Query with camelCase property
+const user = await db.select()
+  .from(users)
+  .where(eq(users.firstName, "John"))  // firstName in TypeScript
+
+// Result is automatically camelCase
+console.log(user[0].firstName)  // ✅ camelCase result
+console.log(user[0].createdAt)  // ✅ camelCase result
+// Database columns are: first_name, created_at (snake_case)
+```
+
+#### 🎯 Type Safety
+All queries are fully typed with inference:
+
+```typescript
+// Types are inferred automatically - no manual typing needed!
+const result = await db.query.users.findFirst({
+  where: eq(users.id, 1),
+  with: { userRoles: { with: { role: true } } }
+})  // result type is inferred including nested relations
+```
+
+#### 🔗 Relational Queries
+Define and query relationships easily:
+
+```typescript
+// Query with relations
+const userWithRoles = await db.query.users.findFirst({
+  where: eq(users.cognitoSub, session.user.sub),
+  with: {
+    userRoles: {
+      with: {
+        role: true  // Include role details
+      }
+    }
+  }
+})
+```
 
 ### Database Setup
 
-1. Ensure environment variables are configured in `.env.local`:
-   ```
-   RDS_RESOURCE_ARN=arn:aws:rds:us-east-1:123456789012:cluster:your-cluster-name
-   RDS_SECRET_ARN=arn:aws:secretsmanager:us-east-1:123456789012:secret:your-secret-name
-   RDS_DATABASE_NAME=your_database_name
+1. **Configure environment variables** in `.env.local`:
+   ```bash
+   # Required for Drizzle ORM
+   RDS_RESOURCE_ARN=arn:aws:rds:us-east-1:123456789012:cluster:your-cluster
+   RDS_SECRET_ARN=arn:aws:secretsmanager:us-east-1:123456789012:secret:your-secret
+   RDS_DATABASE_NAME=jocular_kangaroo
    AWS_REGION=us-east-1
+
+   # Optional for local development
+   AWS_ACCESS_KEY_ID=your-access-key
+   AWS_SECRET_ACCESS_KEY=your-secret-key
    ```
 
-2. Test the connection:
+2. **Test the connection** (optional):
    ```bash
    npm run ts-node scripts/test-drizzle-connection.ts
    ```
 
-3. Pull existing schema from database:
+3. **Pull existing schema** from database:
    ```bash
    npm run db:pull
    ```
+   This generates `src/db/schema.ts` from your database structure.
 
-The project is migrating from direct RDS Data API calls to Drizzle ORM for improved type safety and developer experience.
+4. **Explore your database**:
+   ```bash
+   npm run db:studio
+   ```
+   Opens Drizzle Studio at `https://local.drizzle.studio`
+
+### Creating Migrations
+
+1. **Modify the schema** in `src/db/schema.ts`:
+   ```typescript
+   export const newTable = pgTable('new_table', {
+     id: serial('id').primaryKey(),
+     name: varchar('name', { length: 255 }).notNull(),
+     createdAt: timestamp('created_at').defaultNow()
+   })
+   ```
+
+2. **Generate migration**:
+   ```bash
+   npm run db:generate
+   ```
+   Creates `drizzle/0006_something.sql`
+
+3. **Review the generated SQL** (important!):
+   ```bash
+   cat drizzle/0006_*.sql
+   ```
+
+4. **Apply migration**:
+   ```bash
+   npm run db:migrate
+   ```
+
+See `docs/DATABASE_MIGRATIONS.md` for comprehensive migration guide.
 
 ## Deployment
 
@@ -181,10 +290,20 @@ See `docs/DEPLOYMENT.md` for full deployment instructions and `docs/OPERATIONS.m
 
 ## Key Documentation
 
-- [Deployment Guide](./docs/DEPLOYMENT.md) - Detailed deployment instructions
-- [Operations Guide](./docs/OPERATIONS.md) - Operational procedures
+### Getting Started
 - [Developer Guide](./DEVELOPER_GUIDE.md) - Development setup and workflow
 - [Environment Variables](./docs/ENVIRONMENT_VARIABLES.md) - Required environment variables
+
+### Database
+- [Database Documentation](./docs/DATABASE.md) - Architecture, schema, and query patterns
+- [Database Migrations](./docs/DATABASE_MIGRATIONS.md) - Comprehensive migration guide
+- [Troubleshooting Guide](./docs/TROUBLESHOOTING.md) - Common issues and solutions
+
+### Deployment & Operations
+- [Deployment Guide](./docs/DEPLOYMENT.md) - Detailed deployment instructions
+- [Operations Guide](./docs/OPERATIONS.md) - Operational procedures
+
+### Architecture & Features
 - [Technical Specification](./docs/SPECIFICATION.md) - Architecture and design
 - [Navigation System](./docs/navigation.md) - Dynamic navigation documentation
 - [S3 Uploads](./docs/project-plan-s3-large-uploads.md) - Large file upload implementation
