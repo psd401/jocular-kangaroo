@@ -24,6 +24,25 @@ const customJestConfig = {
     'ts-jest': {
       useESM: true
     }
+  },
+  collectCoverageFrom: [
+    'actions/**/*.ts',
+    'app/**/*.{ts,tsx}',
+    'components/**/*.{ts,tsx}',
+    'lib/**/*.ts',
+    '!**/*.d.ts',
+    '!**/node_modules/**',
+    '!**/.next/**',
+    '!**/coverage/**',
+    '!**/dist/**'
+  ],
+  coverageThreshold: {
+    global: {
+      branches: 80,
+      functions: 80,
+      lines: 80,
+      statements: 80
+    }
   }
 };
 
