@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "@/lib/auth/server-session"
-import { getNavigationItems as getNavigationItemsViaDataAPI } from "@/lib/db/data-api-adapter"
+import { db } from "@/lib/db/drizzle-client"
+import { navigationItems, tools } from "@/src/db/schema"
+import { asc } from "drizzle-orm"
 import { getCurrentUserAction } from "@/actions/db/get-current-user-action"
 import { getUserTools } from "@/lib/auth/tool-helpers"
 import { generateRequestId, createLogger } from "@/lib/logger"
@@ -93,7 +95,6 @@ export async function GET() {
     }
     
     try {
-      // Get current user and their tools
       const userResult = await getCurrentUserAction();
       if (!userResult.isSuccess || !userResult.data) {
         logger.error("Failed to get user data", { userResult });
@@ -102,57 +103,75 @@ export async function GET() {
           { status: 500 }
         )
       }
-      
+
       logger.info("User data retrieved successfully", { userId: userResult.data.user.id });
 
       const userTools = await getUserTools(userResult.data.user.id);
       logger.info("User tools retrieved", { toolCount: userTools.length });
-      
-      const navItems = await getNavigationItemsViaDataAPI();
+
+      const navItems = await db
+        .select({
+          id: navigationItems.id,
+          label: navigationItems.label,
+          icon: navigationItems.icon,
+          link: navigationItems.link,
+          parentId: navigationItems.parentId,
+          description: navigationItems.description,
+          type: navigationItems.type,
+          toolId: navigationItems.toolId,
+          toolIdentifier: navigationItems.toolIdentifier,
+          requiresRole: navigationItems.requiresRole,
+          position: navigationItems.position,
+          isActive: navigationItems.isActive,
+          createdAt: navigationItems.createdAt
+        })
+        .from(navigationItems)
+        .orderBy(asc(navigationItems.position));
+
       logger.info("Navigation items retrieved from database", { itemCount: navItems.length });
 
-      // Get all tools to map toolId to tool identifier
-      const { executeSQL } = await import('@/lib/db/data-api-adapter');
-      const toolsResult = await executeSQL('SELECT id, identifier FROM tools');
+      const toolsResult = await db
+        .select({
+          id: tools.id,
+          identifier: tools.identifier
+        })
+        .from(tools);
+
       const toolIdToIdentifier = Object.fromEntries(
-        toolsResult.map(tool => [Number(tool.id), String(tool.identifier)])
+        toolsResult.map(tool => [tool.id, tool.identifier])
       );
 
-      // Filter navigation items based on tool access
       const filteredNavItems = navItems.filter(item => {
-        // If no tool_identifier is specified, the item is available to all
         if (!item.toolId) return true;
-        
-        // Check if user has access to the required tool
+
         const toolIdentifier = toolIdToIdentifier[item.toolId];
         return toolIdentifier && userTools.includes(toolIdentifier);
       });
 
-      // Format the navigation items
       const formattedNavItems = filteredNavItems.map(item => ({
         id: item.id,
         label: item.label,
         icon: item.icon,
         link: item.link,
         parent_id: item.parentId,
-        parent_label: null, // This column doesn't exist in the table
+        parent_label: null,
         tool_id: item.toolId,
         position: item.position,
         type: item.type || 'link',
         description: item.description || null,
-        color: null // This column doesn't exist in the current table
+        color: null
       }))
 
-      logger.info("Navigation items filtered and formatted successfully", { 
+      logger.info("Navigation items filtered and formatted successfully", {
         originalCount: navItems.length,
-        filteredCount: formattedNavItems.length 
+        filteredCount: formattedNavItems.length
       });
-      
+
       return NextResponse.json({
         isSuccess: true,
         data: formattedNavItems
       })
-      
+
     } catch (error) {
       logger.error("Data API error:", error);
       

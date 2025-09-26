@@ -1,5 +1,7 @@
 import { getServerSession } from '@/lib/auth/server-session';
-import { executeSQL, updateUserRole } from '@/lib/db/data-api-adapter';
+import { db } from '@/lib/db/drizzle-client';
+import { users, roles, userRoles } from '@/src/db/schema';
+import { eq } from 'drizzle-orm';
 import { hasRole } from '@/utils/roles';
 import { withErrorHandling, unauthorized } from '@/lib/api-utils';
 import { createError } from '@/lib/error-utils';
@@ -13,7 +15,6 @@ export async function POST(request: Request) {
   }
 
   return withErrorHandling(async () => {
-    // SECURITY: Only existing administrators can promote users
     const isAdmin = await hasRole('administrator');
     if (!isAdmin) {
       throw createError('Only administrators can promote users to administrator role', {
@@ -23,7 +24,6 @@ export async function POST(request: Request) {
       });
     }
 
-    // Get the target user ID from request body
     const body = await request.json();
     const { targetUserId } = body;
 
@@ -35,15 +35,40 @@ export async function POST(request: Request) {
       });
     }
 
-    // Update target user role to administrator
     try {
-      await updateUserRole(targetUserId, 'administrator');
-      
-      // Get updated user info
-      const sql = 'SELECT id, cognito_sub, email, first_name, last_name FROM users WHERE id = :userId';
-      const params = [{ name: 'userId', value: { stringValue: targetUserId } }];
-      const result = await executeSQL(sql, params);
-      
+      const [adminRole] = await db
+        .select({ id: roles.id })
+        .from(roles)
+        .where(eq(roles.name, 'administrator'))
+        .limit(1);
+
+      if (!adminRole) {
+        throw createError('Administrator role not found', {
+          code: 'NOT_FOUND',
+          level: ErrorLevel.WARN,
+          details: { roleName: 'administrator' }
+        });
+      }
+
+      await db.delete(userRoles).where(eq(userRoles.userId, targetUserId));
+
+      await db.insert(userRoles).values({
+        userId: targetUserId,
+        roleId: adminRole.id
+      });
+
+      const result = await db
+        .select({
+          id: users.id,
+          cognitoSub: users.cognitoSub,
+          email: users.email,
+          firstName: users.firstName,
+          lastName: users.lastName
+        })
+        .from(users)
+        .where(eq(users.id, targetUserId))
+        .limit(1);
+
       if (!result || result.length === 0) {
         throw createError('User not found', {
           code: 'NOT_FOUND',
@@ -51,7 +76,7 @@ export async function POST(request: Request) {
           details: { targetUserId }
         });
       }
-      
+
       return {
         success: true,
         user: result[0]
