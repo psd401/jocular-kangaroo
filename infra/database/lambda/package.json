@@ -8,7 +8,8 @@
     "package": "npm run build && cp -r ../schema dist/"
   },
   "dependencies": {
-    "@aws-sdk/client-rds-data": "^3.0.0"
+    "@aws-sdk/client-rds-data": "^3.0.0",
+    "drizzle-orm": "^0.44.5"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
