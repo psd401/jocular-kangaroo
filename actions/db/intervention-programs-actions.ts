@@ -7,7 +7,7 @@ import { interventionPrograms, interventions } from '@/src/db/schema';
 import { ActionState } from '@/types/actions-types';
 import { InterventionProgram, InterventionType } from '@/types/intervention-types';
 import { getCurrentUserAction } from './get-current-user-action';
-import { hasToolAccess } from '@/lib/auth/tool-helpers';
+import { hasToolAccess } from '@/utils/roles';
 import { createLogger, generateRequestId, startTimer, sanitizeForLogging } from '@/lib/logger';
 import { handleError, createSuccess, createError } from '@/lib/error-utils';
 import { eq, count, inArray, asc, and } from 'drizzle-orm';
@@ -151,7 +151,7 @@ export async function createInterventionProgramAction(
     }
 
     // Check permissions
-    const hasAccess = await hasToolAccess(currentUser.data.user.id, 'programs');
+    const hasAccess = await hasToolAccess('programs');
     if (!hasAccess) {
       log.warn("Access denied - no program permission", { userId: currentUser.data.user.id })
       throw createError('You do not have permission to create programs', { code: "FORBIDDEN" })
@@ -228,7 +228,7 @@ export async function updateInterventionProgramAction(
     }
 
     // Check permissions
-    const hasAccess = await hasToolAccess(currentUser.data.user.id, 'programs');
+    const hasAccess = await hasToolAccess('programs');
     if (!hasAccess) {
       log.warn("Access denied - no program permission", { userId: currentUser.data.user.id })
       throw createError('You do not have permission to update programs', { code: "FORBIDDEN" })
@@ -325,7 +325,7 @@ export async function deleteInterventionProgramAction(id: number): Promise<Actio
     }
 
     // Check permissions
-    const hasAccess = await hasToolAccess(currentUser.data.user.id, 'programs');
+    const hasAccess = await hasToolAccess('programs');
     if (!hasAccess) {
       log.warn("Access denied - no program permission", { userId: currentUser.data.user.id })
       throw createError('You do not have permission to delete programs', { code: "FORBIDDEN" })

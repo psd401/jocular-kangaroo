@@ -3,8 +3,7 @@ import { getServerSession } from "@/lib/auth/server-session"
 import { db } from "@/lib/db/drizzle-client"
 import { navigationItems, tools } from "@/src/db/schema"
 import { asc } from "drizzle-orm"
-import { getCurrentUserAction } from "@/actions/db/get-current-user-action"
-import { getUserTools } from "@/lib/auth/tool-helpers"
+import { getUserTools } from "@/utils/roles"
 import { generateRequestId, createLogger } from "@/lib/logger"
 
 export const dynamic = 'force-dynamic';
@@ -95,18 +94,7 @@ export async function GET() {
     }
     
     try {
-      const userResult = await getCurrentUserAction();
-      if (!userResult.isSuccess || !userResult.data) {
-        logger.error("Failed to get user data", { userResult });
-        return NextResponse.json(
-          { isSuccess: false, message: "Failed to get user data" },
-          { status: 500 }
-        )
-      }
-
-      logger.info("User data retrieved successfully", { userId: userResult.data.user.id });
-
-      const userTools = await getUserTools(userResult.data.user.id);
+      const userTools = await getUserTools();
       logger.info("User tools retrieved", { toolCount: userTools.length });
 
       const navItems = await db

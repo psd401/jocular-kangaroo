@@ -5,7 +5,7 @@ import { uploadDocument, deleteDocument } from "@/lib/aws/s3-client";
 import { db } from "@/lib/db/drizzle-client";
 import { interventionAttachments, documents, users } from "@/src/db/schema";
 import { eq, and, desc } from "drizzle-orm";
-import { hasToolAccess } from "@/lib/auth/tool-helpers";
+import { hasToolAccess } from "@/utils/roles";
 import { generateRequestId, createLogger } from "@/lib/logger";
 
 // Upload a document for an intervention
@@ -32,6 +32,16 @@ export async function POST(
       );
     }
 
+    // Check if user has access to interventions
+    const hasAccess = await hasToolAccess("interventions");
+    if (!hasAccess) {
+      logger.info("User lacks permission to upload intervention documents");
+      return NextResponse.json(
+        { error: "You do not have permission to upload intervention documents" },
+        { status: 403 }
+      );
+    }
+
     // Get current user
     const userResult = await getCurrentUserAction();
     if (!userResult.isSuccess || !userResult.data) {
@@ -42,16 +52,6 @@ export async function POST(
     }
 
     const currentUser = userResult.data;
-
-    // Check if user has access to interventions
-    const hasAccess = await hasToolAccess(currentUser.user.id, "interventions");
-    if (!hasAccess) {
-      logger.info("User lacks permission to upload intervention documents", { userId: currentUser.user.id });
-      return NextResponse.json(
-        { error: "You do not have permission to upload intervention documents" },
-        { status: 403 }
-      );
-    }
 
     const { id } = await params;
     const interventionId = parseInt(id);
@@ -202,6 +202,16 @@ export async function GET(
       );
     }
 
+    // Check if user has access to interventions
+    const hasAccess = await hasToolAccess("interventions");
+    if (!hasAccess) {
+      logger.info("User lacks permission to view intervention documents");
+      return NextResponse.json(
+        { error: "You do not have permission to view intervention documents" },
+        { status: 403 }
+      );
+    }
+
     // Get current user
     const userResult = await getCurrentUserAction();
     if (!userResult.isSuccess || !userResult.data) {
@@ -214,16 +224,6 @@ export async function GET(
 
     const currentUser = userResult.data;
     logger.info("User authenticated for document fetch", { userId: currentUser.user.id });
-
-    // Check if user has access to interventions
-    const hasAccess = await hasToolAccess(currentUser.user.id, "interventions");
-    if (!hasAccess) {
-      logger.info("User lacks permission to view intervention documents", { userId: currentUser.user.id });
-      return NextResponse.json(
-        { error: "You do not have permission to view intervention documents" },
-        { status: 403 }
-      );
-    }
 
     const { id } = await params;
     const interventionId = parseInt(id);
@@ -308,6 +308,16 @@ export async function DELETE(
       );
     }
 
+    // Check if user has access to interventions
+    const hasAccess = await hasToolAccess("interventions");
+    if (!hasAccess) {
+      logger.info("User lacks permission to delete intervention documents");
+      return NextResponse.json(
+        { error: "You do not have permission to delete intervention documents" },
+        { status: 403 }
+      );
+    }
+
     // Get current user
     const userResult = await getCurrentUserAction();
     if (!userResult.isSuccess || !userResult.data) {
@@ -320,16 +330,6 @@ export async function DELETE(
 
     const currentUser = userResult.data;
     logger.info("User authenticated for document deletion", { userId: currentUser.user.id });
-
-    // Check if user has access to interventions
-    const hasAccess = await hasToolAccess(currentUser.user.id, "interventions");
-    if (!hasAccess) {
-      logger.info("User lacks permission to delete intervention documents", { userId: currentUser.user.id });
-      return NextResponse.json(
-        { error: "You do not have permission to delete intervention documents" },
-        { status: 403 }
-      );
-    }
 
     const { searchParams } = new URL(request.url);
     const attachmentId = searchParams.get("attachmentId");

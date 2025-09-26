@@ -14,7 +14,7 @@ import {
   StudentStatus
 } from '@/types/intervention-types';
 import { getCurrentUserAction } from './get-current-user-action';
-import { hasToolAccess } from '@/lib/auth/tool-helpers';
+import { hasToolAccess } from '@/utils/roles';
 import { createLogger, generateRequestId, startTimer, sanitizeForLogging } from "@/lib/logger";
 import { handleError, createSuccess } from "@/lib/error-utils";
 
@@ -316,7 +316,7 @@ export async function createStudentAction(
     }
 
     // Check if user has permission to create students
-    const hasAccess = await hasToolAccess(currentUser.data.user.id, 'students');
+    const hasAccess = await hasToolAccess('students');
     if (!hasAccess) {
       log.warn("Permission denied", { userId: currentUser.data.user.id })
       timer({ status: "error" })
@@ -435,7 +435,7 @@ export async function updateStudentAction(
     }
 
     // Check if user has permission
-    const hasAccess = await hasToolAccess(currentUser.data.user.id, 'students');
+    const hasAccess = await hasToolAccess('students');
     if (!hasAccess) {
       log.warn("Permission denied", { userId: currentUser.data.user.id })
       timer({ status: "error" })
@@ -574,7 +574,7 @@ export async function deleteStudentAction(id: number): Promise<ActionState<void>
     }
 
     // Check if user has permission
-    const hasAccess = await hasToolAccess(currentUser.data.user.id, 'students');
+    const hasAccess = await hasToolAccess('students');
     if (!hasAccess) {
       log.warn("Permission denied", { userId: currentUser.data.user.id })
       timer({ status: "error" })

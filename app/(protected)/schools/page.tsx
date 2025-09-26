@@ -1,27 +1,10 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { hasToolAccess } from '@/lib/auth/tool-helpers';
-import { getCurrentUserAction } from '@/actions/db/get-current-user-action';
+import { hasToolAccess } from '@/utils/roles';
 
 export const dynamic = 'force-dynamic';
 
 export default async function SchoolsPage() {
-  const currentUserResult = await getCurrentUserAction();
-  if (!currentUserResult.isSuccess || !currentUserResult.data) {
-    return (
-      <div>
-        <Card>
-          <CardHeader>
-            <CardTitle>Unauthorized</CardTitle>
-            <CardDescription>
-              Please sign in to access this page.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    );
-  }
-
-  const hasAccess = await hasToolAccess(currentUserResult.data.user.id, 'schools');
+  const hasAccess = await hasToolAccess('schools');
   if (!hasAccess) {
     return (
       <div>
