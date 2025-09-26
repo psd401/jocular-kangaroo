@@ -86,7 +86,12 @@ await db.update(users)
 
 // ✅ Transaction
 await db.transaction(async (tx) => {
-  await tx.insert(interventions).values({ studentId, type: 'academic' })
+  await tx.insert(interventions).values({
+    studentId,
+    type: 'academic',
+    startDate: new Date(),
+    title: 'Academic Support'
+  })
   await tx.update(students).set({ status: 'active' }).where(eq(students.id, studentId))
   // All or nothing - automatic rollback on error
 })

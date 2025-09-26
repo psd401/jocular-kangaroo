@@ -195,21 +195,28 @@ try {
     // Create intervention
     const intervention = await tx
       .insert(interventions)
-      .values({ studentId, type: 'academic' })
+      .values({
+        studentId,
+        type: 'academic',
+        startDate: new Date(),
+        title: 'Academic Support'
+      })
       .returning()
 
     // Create first session
     await tx
-      .insert(sessions)
+      .insert(interventionSessions)
       .values({
         interventionId: intervention[0].id,
-        sessionDate: new Date()
+        sessionDate: new Date(),
+        progressNotes: "Initial session",
+        recordedBy: session.user.id
       })
 
     // If any operation fails, all changes are rolled back
   })
 } catch (error) {
-  // Transaction was rolled back
+  // Transaction was rolled back (assuming log is from createLogger)
   log.error("Transaction failed", { error })
 }
 ```

@@ -232,7 +232,7 @@ const userWithRoles = await db.query.users.findFirst({
    export const newTable = pgTable('new_table', {
      id: serial('id').primaryKey(),
      name: varchar('name', { length: 255 }).notNull(),
-     createdAt: timestamp('created_at').defaultNow()
+     createdAt: timestamp('created_at').defaultNow().notNull()
    })
    ```
 

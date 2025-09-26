@@ -104,8 +104,8 @@ export const userRoles = pgTable('user_roles', {
   id: serial('id').primaryKey(),
   userId: integer('user_id').references(() => users.id).notNull(),
   roleId: integer('role_id').references(() => roles.id).notNull(),
-  assignedAt: timestamp('assigned_at').defaultNow().notNull(),
-  assignedBy: integer('assigned_by').references(() => users.id)
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull()
 })
 ```
 
@@ -169,6 +169,8 @@ const allUsers = await db.select().from(users)
 
 #### Select Specific Columns
 ```typescript
+import { sql } from "drizzle-orm"
+
 const userNames = await db
   .select({
     id: users.id,
@@ -314,6 +316,7 @@ const result = await db
 ### Aggregations
 
 ```typescript
+import { sql } from "drizzle-orm"
 import { count, sum, avg, min, max } from "drizzle-orm"
 
 // Count rows
@@ -501,16 +504,23 @@ await db.transaction(async (tx) => {
   // Create intervention
   const intervention = await tx
     .insert(interventions)
-    .values({ studentId, type: 'academic', status: 'planned' })
+    .values({
+      studentId,
+      type: 'academic',
+      status: 'planned',
+      startDate: new Date(),
+      title: 'Academic Support'
+    })
     .returning()
 
   // Create first session
   await tx
-    .insert(sessions)
+    .insert(interventionSessions)
     .values({
       interventionId: intervention[0].id,
       sessionDate: new Date(),
-      notes: "Initial session"
+      progressNotes: "Initial session",
+      recordedBy: userId
     })
 
   // Update student status
@@ -544,6 +554,7 @@ try {
   })
 } catch (error) {
   // Transaction was rolled back
+  // Note: log is created using createLogger() from @/lib/logger
   log.error("Transaction failed", { error })
 }
 ```
@@ -563,11 +574,15 @@ await db.transaction(async (tx) => {
     })
   } catch (error) {
     // Inner transaction rolled back, outer continues
+    // Note: log is created using createLogger() from @/lib/logger
     log.warn("Intervention creation failed, continuing", { error })
   }
 
   // This still executes even if inner transaction failed
-  await tx.insert(auditLog).values({ action: "student_created" })
+  // Note: Using students table for demonstration; adjust to your schema
+  await tx.update(students)
+    .set({ updatedAt: new Date() })
+    .where(eq(students.sisId, "S001"))
 })
 ```
 
@@ -595,7 +610,7 @@ export const users = pgTable('users', {
 
 ### Query Optimization
 
-**Use `findFirst()` instead of `find()` when expecting one result:**
+**Use `findFirst()` instead of `findMany()` when expecting one result:**
 
 ```typescript
 // ✅ Efficient - stops after first match
@@ -659,9 +674,11 @@ const user = await db
   .from(users)
   .where(eq(users.email, userInput))  // userInput is safely escaped
 
-// ❌ Never construct raw SQL with user input
+// ❌ Never construct raw SQL with user input via string concatenation
+import { sql } from "drizzle-orm"
+
 const user = await db.execute(
-  sql`SELECT * FROM users WHERE email = ${userInput}`  // Don't do this!
+  sql.raw(`SELECT * FROM users WHERE email = '${userInput}'`)  // Vulnerable to SQL Injection!
 )
 ```
 
@@ -691,7 +708,22 @@ export async function deleteIntervention(id: number) {
     where: eq(interventions.id, id)
   })
 
-  if (intervention.createdBy !== session.user.id && !session.user.isAdmin) {
+  if (!intervention) {
+    throw new Error("Intervention not found")
+  }
+
+  // Get current user's database ID from session
+  const currentUser = await db.query.users.findFirst({
+    columns: { id: true },
+    where: eq(users.cognitoSub, session.user.sub)
+  })
+
+  if (!currentUser) {
+    throw new Error("Current user not found")
+  }
+
+  // Check ownership (session.user.sub maps to users.cognitoSub, not users.id)
+  if (intervention.createdBy !== currentUser.id && !session.user.isAdmin) {
     throw new Error("Unauthorized")
   }
 
