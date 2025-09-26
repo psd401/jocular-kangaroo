@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db/drizzle-client"
 import { roles } from "@/src/db/schema"
-import { asc } from "drizzle-orm"
+import { asc, eq } from "drizzle-orm"
 import { requireAdmin } from "@/lib/auth/admin-check"
 import { generateRequestId, createLogger } from "@/lib/logger"
 
@@ -63,14 +63,44 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    logger.info("Creating new role", { roleName: body.name });
+
+    if (!body.name || typeof body.name !== 'string' || body.name.trim().length === 0) {
+      logger.error("Invalid role name provided", { name: body.name });
+      return NextResponse.json(
+        { error: "Role name is required and must be a non-empty string" },
+        { status: 400 }
+      );
+    }
+
+    if (body.name.length > 100) {
+      return NextResponse.json(
+        { error: "Role name must be 100 characters or less" },
+        { status: 400 }
+      );
+    }
+
+    const [existingRole] = await db
+      .select({ id: roles.id })
+      .from(roles)
+      .where(eq(roles.name, body.name.trim()))
+      .limit(1);
+
+    if (existingRole) {
+      logger.error("Duplicate role name", { name: body.name });
+      return NextResponse.json(
+        { error: "A role with this name already exists" },
+        { status: 409 }
+      );
+    }
+
+    logger.info("Creating new role", { roleName: body.name.trim() });
 
     const [role] = await db
       .insert(roles)
       .values({
-        name: body.name,
-        description: body.description ?? null,
-        isSystem: body.isSystem ?? false
+        name: body.name.trim(),
+        description: body.description?.trim() ?? null,
+        isSystem: false
       })
       .returning();
 

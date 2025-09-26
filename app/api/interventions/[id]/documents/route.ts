@@ -15,7 +15,10 @@ export async function POST(
 ) {
   const requestId = generateRequestId();
   const logger = createLogger({ requestId, route: "/api/interventions/[id]/documents", method: "POST" });
-  
+
+  let key = "";
+  let url = "";
+
   try {
     logger.info("Starting document upload process");
     
@@ -95,7 +98,7 @@ export async function POST(
     const buffer = Buffer.from(await file.arrayBuffer());
 
     // Upload to S3
-    const { key, url } = await uploadDocument({
+    const uploadResult = await uploadDocument({
       userId: `intervention-${interventionId}`,
       fileName: file.name,
       fileContent: buffer,
@@ -106,34 +109,40 @@ export async function POST(
         description: description || "",
       },
     });
+    key = uploadResult.key;
+    url = uploadResult.url;
 
-    const [document] = await db
-      .insert(documents)
-      .values({
-        userId: currentUser.user.id,
-        fileName: file.name,
-        fileType: file.type,
-        fileSizeBytes: file.size,
-        s3Key: key,
-        metadata: {
-          interventionId: interventionId.toString(),
-          uploadedBy: currentUser.user.id.toString(),
-          description: description || "",
-        }
-      })
-      .returning({ id: documents.id });
+    const result = await db.transaction(async (tx) => {
+      const [document] = await tx
+        .insert(documents)
+        .values({
+          userId: currentUser.user.id,
+          fileName: file.name,
+          fileType: file.type,
+          fileSizeBytes: file.size,
+          s3Key: key,
+          metadata: {
+            interventionId: interventionId.toString(),
+            uploadedBy: currentUser.user.id.toString(),
+            description: description || "",
+          }
+        })
+        .returning({ id: documents.id });
 
-    const [attachment] = await db
-      .insert(interventionAttachments)
-      .values({
-        interventionId,
-        documentId: document.id,
-        description: description || null,
-        createdBy: currentUser.user.id
-      })
-      .returning({ id: interventionAttachments.id });
+      const [attachment] = await tx
+        .insert(interventionAttachments)
+        .values({
+          interventionId,
+          documentId: document.id,
+          description: description || null,
+          createdBy: currentUser.user.id
+        })
+        .returning({ id: interventionAttachments.id });
 
-    const attachmentId = attachment?.id;
+      return { document, attachment };
+    });
+
+    const attachmentId = result.attachment?.id;
     
     logger.info("Document uploaded successfully", { 
       attachmentId, 
@@ -155,6 +164,16 @@ export async function POST(
     });
   } catch (error) {
     logger.error("Error uploading document", error);
+
+    if (key) {
+      try {
+        await deleteDocument(key);
+        logger.info("S3 file cleanup successful after database error", { key });
+      } catch (cleanupError) {
+        logger.error("Failed to cleanup S3 file after database error", { key, error: cleanupError });
+      }
+    }
+
     return NextResponse.json(
       { error: "Failed to upload document" },
       { status: 500 }

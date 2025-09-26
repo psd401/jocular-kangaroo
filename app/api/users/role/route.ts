@@ -46,11 +46,13 @@ export async function POST(request: Request) {
       return new NextResponse('Role not found', { status: 404 });
     }
 
-    await db.delete(userRoles).where(eq(userRoles.userId, targetUserId));
+    await db.transaction(async (tx) => {
+      await tx.delete(userRoles).where(eq(userRoles.userId, targetUserId));
 
-    await db.insert(userRoles).values({
-      userId: targetUserId,
-      roleId: roleData.id
+      await tx.insert(userRoles).values({
+        userId: targetUserId,
+        roleId: roleData.id
+      });
     });
 
     const result = await db

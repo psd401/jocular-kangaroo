@@ -50,11 +50,13 @@ export async function POST(request: Request) {
         });
       }
 
-      await db.delete(userRoles).where(eq(userRoles.userId, targetUserId));
+      await db.transaction(async (tx) => {
+        await tx.delete(userRoles).where(eq(userRoles.userId, targetUserId));
 
-      await db.insert(userRoles).values({
-        userId: targetUserId,
-        roleId: adminRole.id
+        await tx.insert(userRoles).values({
+          userId: targetUserId,
+          roleId: adminRole.id
+        });
       });
 
       const result = await db
