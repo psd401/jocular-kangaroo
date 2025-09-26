@@ -41,20 +41,15 @@ export class DatabaseStack extends cdk.Stack {
       allowAllOutbound: true,
     });
     
-    // For development, allow PostgreSQL access from anywhere (you should restrict this to your IP)
-    if (props.environment === 'dev') {
+    // Data API is enabled, so direct PostgreSQL port access is not required
+    // All database operations use RDS Data API which authenticates via IAM + Secrets Manager
+    // If direct psql access is needed for debugging, use AWS Systems Manager Session Manager
+
+    if (props.environment !== 'dev') {
+      // Production: only allow from within VPC (for potential bastion/admin access)
       dbSg.addIngressRule(
-        ec2.Peer.anyIpv4(), 
-        ec2.Port.tcp(5432), 
-        'Allow PostgreSQL access from anywhere (DEV ONLY)'
-      );
-      // Better practice: restrict to your IP
-      // dbSg.addIngressRule(ec2.Peer.ipv4('YOUR.IP.ADDRESS.HERE/32'), ec2.Port.tcp(5432), 'Allow PostgreSQL from my IP');
-    } else {
-      // Production: only allow from within VPC
-      dbSg.addIngressRule(
-        ec2.Peer.ipv4(vpc.vpcCidrBlock), 
-        ec2.Port.tcp(5432), 
+        ec2.Peer.ipv4(vpc.vpcCidrBlock),
+        ec2.Port.tcp(5432),
         'Allow PostgreSQL access from VPC'
       );
     }
