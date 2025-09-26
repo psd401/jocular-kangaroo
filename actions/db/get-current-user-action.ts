@@ -1,18 +1,13 @@
 "use server"
 
-import {
-  getUserByCognitoSub,
-  createUser,
-  getRoleByName,
-  assignRoleToUser,
-  getUserRolesByCognitoSub,
-  executeSQL
-} from "@/lib/db/data-api-adapter"
-import { SqlParameter } from "@aws-sdk/client-rds-data"
+import { db } from "@/lib/db/drizzle-client"
+import { users, roles, userRoles } from "@/src/db/schema"
+import { eq, and } from "drizzle-orm"
 import { getServerSession } from "@/lib/auth/server-session"
 import { ActionState } from "@/types"
 import { SelectUser } from "@/types/db-types"
-import logger from "@/lib/logger"
+import { createLogger, generateRequestId, startTimer, sanitizeForLogging } from "@/lib/logger"
+import { handleError, createSuccess } from "@/lib/error-utils"
 
 interface CurrentUserWithRoles {
   user: SelectUser
@@ -22,107 +17,128 @@ interface CurrentUserWithRoles {
 export async function getCurrentUserAction(): Promise<
   ActionState<CurrentUserWithRoles>
 > {
-  const session = await getServerSession()
-  if (!session) {
-    return { isSuccess: false, message: "No session" }
-  }
+  const requestId = generateRequestId()
+  const timer = startTimer("getCurrentUserAction")
+  const log = createLogger({ requestId, action: "getCurrentUserAction" })
 
   try {
-    // First try to find user by cognito_sub
-    let user: SelectUser | null = null
-    const userResult = await getUserByCognitoSub(session.sub)
-    if (userResult) {
-      user = userResult as unknown as SelectUser
+    const session = await getServerSession()
+    if (!session) {
+      log.warn("No session available")
+      timer({ status: "error" })
+      return { isSuccess: false, message: "No session" }
     }
 
+    log.info("Action started", {
+      params: sanitizeForLogging({ cognitoSub: session.sub, email: session.email })
+    })
+
+    // First try to find user by cognito_sub
+    let user = await db
+      .select()
+      .from(users)
+      .where(eq(users.cognitoSub, session.sub))
+      .limit(1)
+
     // If not found by cognito_sub, check if user exists by email
-    if (!user && session.email) {
-      const query = `
-        SELECT id, cognito_sub, email, first_name, last_name,
-               last_sign_in_at, created_at, updated_at
-        FROM users
-        WHERE email = :email
-      `
-      const parameters = [
-        { name: "email", value: { stringValue: session.email } }
-      ]
-      const result = await executeSQL<SelectUser>(query, parameters)
-      
-      if (result.length > 0) {
+    if (user.length === 0 && session.email) {
+      const existingUserByEmail = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, session.email))
+        .limit(1)
+
+      if (existingUserByEmail.length > 0) {
         // User exists with this email but different cognito_sub
         // Update the cognito_sub to link to the new auth system
-        const existingUser = result[0]
-        
-        const updateQuery = `
-          UPDATE users
-          SET cognito_sub = :cognitoSub, updated_at = NOW()
-          WHERE id = :userId
-          RETURNING id, cognito_sub, email, first_name, last_name, created_at, updated_at
-        `
-        const updateParams: SqlParameter[] = [
-          { name: "cognitoSub", value: { stringValue: session.sub } },
-          { name: "userId", value: { longValue: existingUser.id } }
-        ]
-        const updateResult = await executeSQL<SelectUser>(updateQuery, updateParams)
-        user = updateResult[0]
+        user = await db
+          .update(users)
+          .set({
+            cognitoSub: session.sub,
+            updatedAt: new Date()
+          })
+          .where(eq(users.id, existingUserByEmail[0].id))
+          .returning()
       }
     }
 
     // If user still doesn't exist, create them
-    if (!user) {
-      const newUserResult = await createUser({
-        cognitoSub: session.sub,
-        email: session.email || `${session.sub}@cognito.local`,
-        firstName: session.email?.split("@")[0] || "User"
-      })
-      user = newUserResult as unknown as SelectUser
+    if (user.length === 0) {
+      const newUser = await db
+        .insert(users)
+        .values({
+          cognitoSub: session.sub,
+          email: session.email || `${session.sub}@cognito.local`,
+          firstName: session.email?.split("@")[0] || "User",
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .returning()
+
+      user = newUser
 
       // Assign default "student" role to new users
-      const studentRoleResult = await getRoleByName("student")
-      if (studentRoleResult.length > 0) {
-        const studentRole = studentRoleResult[0]
-        const roleId = studentRole.id as number
-        await assignRoleToUser(user!.id, roleId)
+      const studentRole = await db
+        .select()
+        .from(roles)
+        .where(eq(roles.name, "student"))
+        .limit(1)
+
+      if (studentRole.length > 0) {
+        await db
+          .insert(userRoles)
+          .values({
+            userId: user[0].id,
+            roleId: studentRole[0].id,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          })
       }
+
+      log.info("Created new user", { userId: user[0].id })
     }
 
     // Update last_sign_in_at
-    const updateLastSignInQuery = `
-      UPDATE users
-      SET last_sign_in_at = NOW(), updated_at = NOW()
-      WHERE id = :userId
-      RETURNING id, cognito_sub, email, first_name, last_name, last_sign_in_at, created_at, updated_at
-    `
-    const updateLastSignInParams: SqlParameter[] = [
-      { name: "userId", value: { longValue: user.id } }
-    ]
-    const updateResult = await executeSQL<SelectUser>(updateLastSignInQuery, updateLastSignInParams)
-    user = updateResult[0]
-
-    // Get user's roles
-    const roleNames = await getUserRolesByCognitoSub(session.sub)
-    const roles = await Promise.all(
-      roleNames.map(async name => {
-        const roleResult = await getRoleByName(name)
-        if (roleResult.length > 0) {
-          const role = roleResult[0]
-          return {
-            id: role.id as number,
-            name: role.name as string,
-            description: role.description as string | undefined
-          }
-        }
-        return null
+    const updatedUser = await db
+      .update(users)
+      .set({
+        lastSignInAt: new Date(),
+        updatedAt: new Date()
       })
+      .where(eq(users.id, user[0].id))
+      .returning()
+
+    // Get user's roles with join
+    const userWithRoles = await db
+      .select({
+        roleId: roles.id,
+        roleName: roles.name,
+        roleDescription: roles.description
+      })
+      .from(userRoles)
+      .innerJoin(roles, eq(userRoles.roleId, roles.id))
+      .where(eq(userRoles.userId, user[0].id))
+
+    const rolesList = userWithRoles.map(role => ({
+      id: role.roleId,
+      name: role.roleName,
+      description: role.roleDescription || undefined
+    }))
+
+    const finalUser = updatedUser[0] as SelectUser
+
+    timer({ status: "success" })
+    log.info("Action completed", { userId: finalUser.id, roleCount: rolesList.length })
+
+    return createSuccess(
+      { user: finalUser, roles: rolesList },
+      "User retrieved successfully"
     )
 
-    return {
-      isSuccess: true,
-      message: "ok",
-      data: { user, roles: roles.filter((role): role is NonNullable<typeof role> => role !== null) }
-    }
-  } catch (err) {
-    logger.error("getCurrentUserAction error", err)
-    return { isSuccess: false, message: "DB error" }
+  } catch (error) {
+    timer({ status: "error" })
+    return handleError(error, "Failed to get current user", {
+      context: "getCurrentUserAction"
+    })
   }
 } 

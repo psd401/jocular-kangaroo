@@ -63,7 +63,7 @@ export function RoleEditDialog({ user, roles, open, onOpenChange }: RoleEditDial
         <DialogHeader>
           <DialogTitle>Edit User Roles</DialogTitle>
           <DialogDescription>
-            Update role assignments for {user.first_name || user.email}
+            Update role assignments for {user.firstName || user.email}
           </DialogDescription>
         </DialogHeader>
         
