@@ -4,6 +4,11 @@ import '@testing-library/jest-dom';
 global.TextEncoder = require('util').TextEncoder;
 global.TextDecoder = require('util').TextDecoder;
 
+// Polyfill setImmediate for winston logger
+if (typeof global.setImmediate === 'undefined') {
+  global.setImmediate = (callback, ...args) => setTimeout(callback, 0, ...args);
+}
+
 // Mock next/navigation
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
