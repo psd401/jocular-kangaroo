@@ -1,9 +1,26 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { hasToolAccess } from '@/utils/roles';
+import { getServerSession } from '@/lib/auth/server-session';
 
 export const dynamic = 'force-dynamic';
 
 export default async function SchoolsPage() {
+  const session = await getServerSession();
+  if (!session) {
+    return (
+      <div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Unauthorized</CardTitle>
+            <CardDescription>
+              Please sign in to access this page.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
+
   const hasAccess = await hasToolAccess('schools');
   if (!hasAccess) {
     return (

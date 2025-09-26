@@ -4,7 +4,22 @@ import { getCurrentUserAction } from "@/actions/db/get-current-user-action";
 import { executeSQL, type FormattedRow } from "@/lib/db/data-api-adapter";
 
 /**
+ * @deprecated This file contains legacy authentication helpers that are incompatible with the modern RBAC system.
+ *
+ * **Migration Guide:**
+ * - Use `hasToolAccess(toolIdentifier)` from `@/utils/roles` instead
+ * - Use `getUserTools()` from `@/utils/roles` instead
+ *
+ * The modern helpers automatically retrieve the session and use cognito_sub for user identification,
+ * which is compatible with the current RBAC implementation.
+ *
+ * See PR #59 for migration examples.
+ */
+
+/**
  * Check if the current user has access to a specific tool
+ * @deprecated Use `hasToolAccess(toolIdentifier)` from `@/utils/roles` instead.
+ * This legacy function uses numeric userId which is incompatible with modern RBAC.
  */
 export async function hasToolAccess(userId: number, toolIdentifier: string): Promise<boolean> {
   try {
@@ -33,6 +48,8 @@ export async function hasToolAccess(userId: number, toolIdentifier: string): Pro
 
 /**
  * Get all tools accessible to the current user
+ * @deprecated Use `getUserTools()` from `@/utils/roles` instead.
+ * This legacy function uses numeric userId which is incompatible with modern RBAC.
  */
 export async function getUserTools(userId: number): Promise<string[]> {
   try {
@@ -60,6 +77,8 @@ export async function getUserTools(userId: number): Promise<string[]> {
 /**
  * Server helper that requires access to certain tool(s).
  * Redirects if the current user lacks access to the required tool(s).
+ * @deprecated Use `hasToolAccess(toolIdentifier)` from `@/utils/roles` instead with appropriate redirect logic.
+ * This legacy function uses numeric userId which is incompatible with modern RBAC.
  */
 export async function requireToolAccess(requiredTools: string | string[]) {
   const tools = Array.isArray(requiredTools) ? requiredTools : [requiredTools];
