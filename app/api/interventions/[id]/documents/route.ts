@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@/lib/auth/server-session";
 import { getCurrentUserAction } from "@/actions/db/get-current-user-action";
 import { uploadDocument, deleteDocument } from "@/lib/aws/s3-client";
-import { executeSQL } from "@/lib/db/data-api-adapter";
+import { db } from "@/lib/db/drizzle-client";
+import { interventionAttachments, documents, users } from "@/src/db/schema";
+import { eq, and, desc } from "drizzle-orm";
 import { hasToolAccess } from "@/lib/auth/tool-helpers";
 import { generateRequestId, createLogger } from "@/lib/logger";
 
@@ -13,7 +15,10 @@ export async function POST(
 ) {
   const requestId = generateRequestId();
   const logger = createLogger({ requestId, route: "/api/interventions/[id]/documents", method: "POST" });
-  
+
+  let key = "";
+  let url = "";
+
   try {
     logger.info("Starting document upload process");
     
@@ -93,7 +98,7 @@ export async function POST(
     const buffer = Buffer.from(await file.arrayBuffer());
 
     // Upload to S3
-    const { key, url } = await uploadDocument({
+    const uploadResult = await uploadDocument({
       userId: `intervention-${interventionId}`,
       fileName: file.name,
       fileContent: buffer,
@@ -104,28 +109,40 @@ export async function POST(
         description: description || "",
       },
     });
+    key = uploadResult.key;
+    url = uploadResult.url;
 
-    // Save reference in database
-    const insertQuery = `
-      INSERT INTO intervention_attachments (
-        intervention_id, file_name, file_key, file_size, 
-        content_type, description, uploaded_by, uploaded_at
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP
-      ) RETURNING id
-    `;
+    const result = await db.transaction(async (tx) => {
+      const [document] = await tx
+        .insert(documents)
+        .values({
+          userId: currentUser.user.id,
+          fileName: file.name,
+          fileType: file.type,
+          fileSizeBytes: file.size,
+          s3Key: key,
+          metadata: {
+            interventionId: interventionId.toString(),
+            uploadedBy: currentUser.user.id.toString(),
+            description: description || "",
+          }
+        })
+        .returning({ id: documents.id });
 
-    const result = await executeSQL(insertQuery, [
-      { name: "1", value: { longValue: interventionId } },
-      { name: "2", value: { stringValue: file.name } },
-      { name: "3", value: { stringValue: key } },
-      { name: "4", value: { longValue: file.size } },
-      { name: "5", value: { stringValue: file.type } },
-      { name: "6", value: { stringValue: description || "" } },
-      { name: "7", value: { longValue: currentUser.user.id } },
-    ]);
+      const [attachment] = await tx
+        .insert(interventionAttachments)
+        .values({
+          interventionId,
+          documentId: document.id,
+          description: description || null,
+          createdBy: currentUser.user.id
+        })
+        .returning({ id: interventionAttachments.id });
 
-    const attachmentId = result?.[0]?.id;
+      return { document, attachment };
+    });
+
+    const attachmentId = result.attachment?.id;
     
     logger.info("Document uploaded successfully", { 
       attachmentId, 
@@ -147,6 +164,16 @@ export async function POST(
     });
   } catch (error) {
     logger.error("Error uploading document", error);
+
+    if (key) {
+      try {
+        await deleteDocument(key);
+        logger.info("S3 file cleanup successful after database error", { key });
+      } catch (cleanupError) {
+        logger.error("Failed to cleanup S3 file after database error", { key, error: cleanupError });
+      }
+    }
+
     return NextResponse.json(
       { error: "Failed to upload document" },
       { status: 500 }
@@ -210,35 +237,37 @@ export async function GET(
     
     logger.info("Fetching documents for intervention", { interventionId });
 
-    // Get attachments from database
-    const query = `
-      SELECT 
-        a.id, a.file_name, a.file_key, a.file_size, 
-        a.content_type, a.description, a.uploaded_at,
-        u.first_name, u.last_name
-      FROM intervention_attachments a
-      LEFT JOIN users u ON a.uploaded_by = u.id
-      WHERE a.intervention_id = $1
-      ORDER BY a.uploaded_at DESC
-    `;
+    const result = await db
+      .select({
+        id: interventionAttachments.id,
+        description: interventionAttachments.description,
+        createdAt: interventionAttachments.createdAt,
+        fileName: documents.fileName,
+        fileType: documents.fileType,
+        fileSizeBytes: documents.fileSizeBytes,
+        s3Key: documents.s3Key,
+        firstName: users.firstName,
+        lastName: users.lastName
+      })
+      .from(interventionAttachments)
+      .leftJoin(documents, eq(interventionAttachments.documentId, documents.id))
+      .leftJoin(users, eq(interventionAttachments.createdBy, users.id))
+      .where(eq(interventionAttachments.interventionId, interventionId))
+      .orderBy(desc(interventionAttachments.createdAt));
 
-    const result = await executeSQL(query, [
-      { name: "1", value: { longValue: interventionId } },
-    ]);
-
-    const attachments = result?.map(record => ({
-      id: Number(record.id),
-      fileName: String(record.fileName),
-      fileKey: String(record.fileKey),
-      fileSize: Number(record.fileSize),
-      contentType: String(record.contentType),
-      description: record.description ? String(record.description) : null,
-      uploadedAt: new Date(String(record.uploadedAt)),
+    const attachments = result.map(record => ({
+      id: record.id,
+      fileName: record.fileName,
+      fileKey: record.s3Key,
+      fileSize: record.fileSizeBytes,
+      contentType: record.fileType,
+      description: record.description,
+      uploadedAt: record.createdAt,
       uploadedBy: {
-        firstName: record.firstName ? String(record.firstName) : null,
-        lastName: record.lastName ? String(record.lastName) : null,
+        firstName: record.firstName,
+        lastName: record.lastName,
       },
-    })) || [];
+    }));
     
     logger.info("Documents fetched successfully", { 
       interventionId, 
@@ -316,19 +345,23 @@ export async function DELETE(
     const { id } = await params;
     logger.info("Processing document deletion", { attachmentId, interventionId: id });
 
-    // Get attachment details
-    const selectQuery = `
-      SELECT file_key, uploaded_by 
-      FROM intervention_attachments 
-      WHERE id = $1 AND intervention_id = $2
-    `;
+    const [selectResult] = await db
+      .select({
+        createdBy: interventionAttachments.createdBy,
+        documentId: interventionAttachments.documentId,
+        s3Key: documents.s3Key
+      })
+      .from(interventionAttachments)
+      .leftJoin(documents, eq(interventionAttachments.documentId, documents.id))
+      .where(
+        and(
+          eq(interventionAttachments.id, parseInt(attachmentId)),
+          eq(interventionAttachments.interventionId, parseInt(id))
+        )
+      )
+      .limit(1);
 
-    const selectResult = await executeSQL(selectQuery, [
-      { name: "1", value: { longValue: parseInt(attachmentId) } },
-      { name: "2", value: { longValue: parseInt(id) } },
-    ]);
-
-    if (!selectResult || selectResult.length === 0) {
+    if (!selectResult) {
       logger.error("Attachment not found for deletion", { attachmentId, interventionId: id });
       return NextResponse.json(
         { error: "Attachment not found" },
@@ -336,17 +369,16 @@ export async function DELETE(
       );
     }
 
-    const fileKey = String(selectResult[0].fileKey);
-    const uploadedBy = Number(selectResult[0].uploadedBy);
+    const uploadedBy = selectResult.createdBy;
+    const fileKey = selectResult.s3Key;
 
-    // Check if user can delete (must be uploader or admin)
     const isAdmin = currentUser.roles.some(r => r.name === "Administrator");
     if (uploadedBy !== currentUser.user.id && !isAdmin) {
-      logger.info("User attempted to delete attachment they don't own", { 
-        userId: currentUser.user.id, 
-        uploadedBy, 
+      logger.info("User attempted to delete attachment they don't own", {
+        userId: currentUser.user.id,
+        uploadedBy,
         attachmentId,
-        isAdmin 
+        isAdmin
       });
       return NextResponse.json(
         { error: "You can only delete your own attachments" },
@@ -354,23 +386,23 @@ export async function DELETE(
       );
     }
 
-    // Delete from S3
-    await deleteDocument(fileKey);
+    if (fileKey) {
+      await deleteDocument(fileKey);
+    }
 
-    // Delete from database
-    const deleteQuery = `
-      DELETE FROM intervention_attachments 
-      WHERE id = $1
-    `;
+    await db
+      .delete(interventionAttachments)
+      .where(eq(interventionAttachments.id, parseInt(attachmentId)));
 
-    await executeSQL(deleteQuery, [
-      { name: "1", value: { longValue: parseInt(attachmentId) } },
-    ]);
+    if (selectResult.documentId) {
+      await db
+        .delete(documents)
+        .where(eq(documents.id, selectResult.documentId));
+    }
     
-    logger.info("Document deleted successfully", { 
-      attachmentId, 
-      fileKey, 
-      deletedBy: currentUser.user.id 
+    logger.info("Document deleted successfully", {
+      attachmentId,
+      deletedBy: currentUser.user.id
     });
 
     return NextResponse.json({
