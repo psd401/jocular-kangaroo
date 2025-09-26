@@ -13,7 +13,7 @@ import {
   InterventionStatus
 } from '@/types/intervention-types';
 import { getCurrentUserAction } from './get-current-user-action';
-import { hasToolAccess } from '@/lib/auth/tool-helpers';
+import { hasToolAccess } from '@/utils/roles';
 import { createLogger, generateRequestId, startTimer, sanitizeForLogging } from '@/lib/logger';
 import { handleError, createSuccess, createError } from '@/lib/error-utils';
 import { eq, and, or, gte, lte, desc } from 'drizzle-orm';
@@ -406,7 +406,7 @@ export async function createInterventionAction(
     }
 
     // Check permissions
-    const hasAccess = await hasToolAccess(currentUser.data.user.id, 'interventions');
+    const hasAccess = await hasToolAccess('interventions');
     if (!hasAccess) {
       log.warn("Access denied - no intervention permission", { userId: currentUser.data.user.id })
       throw createError('You do not have permission to create interventions', { code: "FORBIDDEN" })
@@ -501,7 +501,7 @@ export async function updateInterventionAction(
     }
 
     // Check permissions
-    const hasAccess = await hasToolAccess(currentUser.data.user.id, 'interventions');
+    const hasAccess = await hasToolAccess('interventions');
     if (!hasAccess) {
       log.warn("Access denied - no intervention permission", { userId: currentUser.data.user.id })
       throw createError('You do not have permission to update interventions', { code: "FORBIDDEN" })
@@ -632,7 +632,7 @@ export async function deleteInterventionAction(id: number): Promise<ActionState<
     }
 
     // Check permissions
-    const hasAccess = await hasToolAccess(currentUser.data.user.id, 'interventions');
+    const hasAccess = await hasToolAccess('interventions');
     if (!hasAccess) {
       log.warn("Access denied - no intervention permission", { userId: currentUser.data.user.id })
       throw createError('You do not have permission to delete interventions', { code: "FORBIDDEN" })

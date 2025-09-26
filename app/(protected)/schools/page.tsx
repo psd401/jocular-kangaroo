@@ -1,12 +1,12 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { hasToolAccess } from '@/lib/auth/tool-helpers';
-import { getCurrentUserAction } from '@/actions/db/get-current-user-action';
+import { hasToolAccess } from '@/utils/roles';
+import { getServerSession } from '@/lib/auth/server-session';
 
 export const dynamic = 'force-dynamic';
 
 export default async function SchoolsPage() {
-  const currentUserResult = await getCurrentUserAction();
-  if (!currentUserResult.isSuccess || !currentUserResult.data) {
+  const session = await getServerSession();
+  if (!session) {
     return (
       <div>
         <Card>
@@ -21,7 +21,7 @@ export default async function SchoolsPage() {
     );
   }
 
-  const hasAccess = await hasToolAccess(currentUserResult.data.user.id, 'schools');
+  const hasAccess = await hasToolAccess('schools');
   if (!hasAccess) {
     return (
       <div>
