@@ -1,28 +1,23 @@
 import { NextResponse } from 'next/server';
 import { testDrizzleConnection } from '@/lib/db/drizzle-client';
-import { getServerSession } from '@/lib/auth/server-session';
+import { requireAdmin } from '@/lib/auth/admin-check';
 import { createLogger, generateRequestId } from '@/lib/logger';
 
+const isProd = process.env.NODE_ENV === 'production';
+
 export async function GET() {
+  // Require admin authentication
+  const authError = await requireAdmin();
+  if (authError) return authError;
+
   const requestId = generateRequestId();
   const logger = createLogger({ requestId, context: 'test-connection' });
-  
+
   try {
-    // Check authentication (optional - remove if you want to test without auth)
-    const session = await getServerSession();
-    if (!session) {
-      logger.warn('Unauthorized connection test attempt');
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-    
-    logger.info('Testing Drizzle connection for authenticated user');
-    
-    // Test the Drizzle connection
+    logger.info('Testing Drizzle connection for admin user');
+
     const result = await testDrizzleConnection();
-    
+
     if (result.success) {
       logger.info('Connection test successful');
       return NextResponse.json({
@@ -36,7 +31,7 @@ export async function GET() {
       return NextResponse.json(
         {
           success: false,
-          error: result.message
+          error: isProd ? 'Database connection test failed' : result.message
         },
         { status: 500 }
       );
@@ -46,7 +41,7 @@ export async function GET() {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: isProd ? 'Internal server error' : (error instanceof Error ? error.message : 'Unknown error')
       },
       { status: 500 }
     );

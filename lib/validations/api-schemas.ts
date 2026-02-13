@@ -115,10 +115,10 @@ export async function validateRequest<T>(
     const result = schema.safeParse(body);
     
     if (!result.success) {
-      const errors = result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
+      const errors = result.error.issues.map((e: { path: PropertyKey[]; message: string }) => `${e.path.join('.')}: ${e.message}`).join(', ');
       return { data: null, error: errors };
     }
-    
+
     return { data: result.data, error: null };
   } catch {
     return { data: null, error: 'Invalid JSON body' };
@@ -136,7 +136,7 @@ export function validateSearchParams<T>(
   const result = schema.safeParse(params);
   
   if (!result.success) {
-    const errors = result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
+    const errors = result.error.issues.map((e: { path: PropertyKey[]; message: string }) => `${e.path.join('.')}: ${e.message}`).join(', ');
     return { data: null, error: errors };
   }
   

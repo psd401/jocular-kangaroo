@@ -2,17 +2,25 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
+import { SqlParameter } from '@aws-sdk/client-rds-data';
 import { executeSQL } from '@/lib/db/data-api-adapter';
 import { ActionState } from '@/types/actions-types';
-import { 
-  Student, 
-  StudentWithDetails, 
-  CreateStudentInput, 
-  GradeLevel, 
-  StudentStatus 
+import {
+  Student,
+  StudentWithDetails,
+  CreateStudentInput,
+  GradeLevel,
+  StudentStatus
 } from '@/types/intervention-types';
 import { getCurrentUserAction } from './get-current-user-action';
 import { hasToolAccess } from '@/lib/auth/tool-helpers';
+import {
+  buildSecurityContext,
+  buildStudentAccessFilter,
+  logDataAccess,
+  logDataAccessBatch,
+  checkActionRateLimit,
+} from '@/lib/security';
 
 // Validation schemas
 const createStudentSchema = z.object({
@@ -36,12 +44,18 @@ const updateStudentSchema = createStudentSchema.partial().extend({
   id: z.number(),
 });
 
+// Default and max pagination limits
+const DEFAULT_LIMIT = 100;
+const MAX_LIMIT = 500;
+
 // Get all students with optional filters
 export async function getStudentsAction(filters?: {
   grade?: GradeLevel;
   status?: StudentStatus;
   school_id?: number;
   search?: string;
+  limit?: number;
+  offset?: number;
 }): Promise<ActionState<Student[]>> {
   try {
     const currentUser = await getCurrentUserAction();
@@ -49,8 +63,19 @@ export async function getStudentsAction(filters?: {
       return { isSuccess: false, message: 'Unauthorized' };
     }
 
+    const userId = currentUser.data.user.id;
+    const roleNames = currentUser.data.roles.map(r => r.name);
+
+    // Rate limit check
+    if (!checkActionRateLimit(userId, 'getStudents')) {
+      return { isSuccess: false, message: 'Rate limit exceeded. Please try again later.' };
+    }
+
+    // Build security context and access filter
+    const secCtx = await buildSecurityContext(userId, roleNames);
+
     let query = `
-      SELECT 
+      SELECT
         s.*,
         sch.name as school_name,
         u1.first_name || ' ' || u1.last_name as created_by_name,
@@ -61,8 +86,8 @@ export async function getStudentsAction(filters?: {
       LEFT JOIN users u2 ON s.updated_by = u2.id
       WHERE 1=1
     `;
-    
-    const parameters: any[] = [];
+
+    const parameters: SqlParameter[] = [];
     let paramIndex = 1;
 
     if (filters?.grade) {
@@ -85,18 +110,33 @@ export async function getStudentsAction(filters?: {
 
     if (filters?.search) {
       query += ` AND (
-        LOWER(s.first_name) LIKE LOWER($${paramIndex}) OR 
-        LOWER(s.last_name) LIKE LOWER($${paramIndex}) OR 
+        LOWER(s.first_name) LIKE LOWER($${paramIndex}) OR
+        LOWER(s.last_name) LIKE LOWER($${paramIndex}) OR
         LOWER(s.student_id) LIKE LOWER($${paramIndex})
       )`;
       parameters.push({ name: `${paramIndex}`, value: { stringValue: `%${filters.search}%` } });
       paramIndex++;
     }
 
+    // Inject row-level access filter
+    const accessFilter = buildStudentAccessFilter(secCtx, paramIndex);
+    query += accessFilter.sql;
+    parameters.push(...accessFilter.parameters);
+    paramIndex = accessFilter.nextParamIndex;
+
+    // Pagination
+    const limit = Math.min(filters?.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
+    const offset = filters?.offset ?? 0;
+
     query += ` ORDER BY s.last_name, s.first_name`;
+    query += ` LIMIT $${paramIndex}`;
+    parameters.push({ name: `${paramIndex}`, value: { longValue: limit } });
+    paramIndex++;
+    query += ` OFFSET $${paramIndex}`;
+    parameters.push({ name: `${paramIndex}`, value: { longValue: offset } });
 
     const result = await executeSQL(query, parameters);
-    const students = result.map((row: any) => ({
+    const students = result.map((row) => ({
       id: row.id as number,
       student_id: row.studentId as string,
       first_name: row.firstName as string,
@@ -121,6 +161,13 @@ export async function getStudentsAction(filters?: {
       updated_by_name: row.updatedByName as string | undefined,
     }));
 
+    // Audit log
+    logDataAccessBatch(
+      { userId, action: 'list', entityType: 'student' },
+      students.map(s => s.id),
+      students.length
+    );
+
     return { isSuccess: true, message: 'Students fetched successfully', data: students };
   } catch (error) {
     // Error logged: Error fetching students
@@ -136,19 +183,31 @@ export async function getStudentByIdAction(id: number): Promise<ActionState<Stud
       return { isSuccess: false, message: 'Unauthorized' };
     }
 
-    // Get student details
+    const userId = currentUser.data.user.id;
+    const roleNames = currentUser.data.roles.map(r => r.name);
+
+    // Rate limit check
+    if (!checkActionRateLimit(userId, 'getStudentById')) {
+      return { isSuccess: false, message: 'Rate limit exceeded. Please try again later.' };
+    }
+
+    // Build security context and verify access
+    const secCtx = await buildSecurityContext(userId, roleNames);
+    const accessFilter = buildStudentAccessFilter(secCtx, 2);
+
     const studentQuery = `
-      SELECT 
+      SELECT
         s.*,
         sch.name as school_name,
         sch.district as school_district
       FROM students s
       LEFT JOIN schools sch ON s.school_id = sch.id
-      WHERE s.id = $1
+      WHERE s.id = $1${accessFilter.sql}
     `;
-    
+
     const studentResult = await executeSQL(studentQuery, [
-      { name: '1', value: { longValue: id } }
+      { name: '1', value: { longValue: id } },
+      ...accessFilter.parameters,
     ]);
 
     if (!studentResult || studentResult.length === 0) {
@@ -189,17 +248,17 @@ export async function getStudentByIdAction(id: number): Promise<ActionState<Stud
 
     // Get guardians
     const guardiansQuery = `
-      SELECT * FROM student_guardians 
-      WHERE student_id = $1 
+      SELECT * FROM student_guardians
+      WHERE student_id = $1
       ORDER BY is_primary_contact DESC, last_name, first_name
     `;
-    
+
     const guardiansResult = await executeSQL(guardiansQuery, [
       { name: '1', value: { longValue: id } }
     ]);
 
     if (guardiansResult) {
-      student.guardians = guardiansResult.map((g: any) => ({
+      student.guardians = guardiansResult.map((g) => ({
         id: g.id as number,
         student_id: g.studentId as number,
         first_name: g.firstName as string,
@@ -212,6 +271,9 @@ export async function getStudentByIdAction(id: number): Promise<ActionState<Stud
         updated_at: new Date(g.updatedAt as string),
       }));
     }
+
+    // Audit log
+    logDataAccess({ userId, action: 'view', entityType: 'student', entityId: id });
 
     return { isSuccess: true, message: 'Student fetched successfully', data: student };
   } catch (error) {
@@ -230,8 +292,15 @@ export async function createStudentAction(
       return { isSuccess: false, message: 'Unauthorized' };
     }
 
+    const userId = currentUser.data.user.id;
+
+    // Rate limit check
+    if (!checkActionRateLimit(userId, 'createStudent')) {
+      return { isSuccess: false, message: 'Rate limit exceeded. Please try again later.' };
+    }
+
     // Check if user has permission to create students
-    const hasAccess = await hasToolAccess(currentUser.data.user.id, 'students');
+    const hasAccess = await hasToolAccess(userId, 'students');
     if (!hasAccess) {
       return { isSuccess: false, message: 'You do not have permission to create students' };
     }
@@ -239,9 +308,9 @@ export async function createStudentAction(
     // Validate input
     const validationResult = createStudentSchema.safeParse(input);
     if (!validationResult.success) {
-      return { 
-        isSuccess: false, 
-        message: validationResult.error.errors[0].message 
+      return {
+        isSuccess: false,
+        message: validationResult.error.issues[0].message
       };
     }
 
@@ -269,7 +338,7 @@ export async function createStudentAction(
       ) RETURNING *
     `;
 
-    const parameters = [
+    const parameters: SqlParameter[] = [
       { name: '1', value: { stringValue: data.student_id } },
       { name: '2', value: { stringValue: data.first_name } },
       { name: '3', value: { stringValue: data.last_name } },
@@ -284,11 +353,11 @@ export async function createStudentAction(
       { name: '12', value: data.emergency_contact_name ? { stringValue: data.emergency_contact_name } : { isNull: true } },
       { name: '13', value: data.emergency_contact_phone ? { stringValue: data.emergency_contact_phone } : { isNull: true } },
       { name: '14', value: data.notes ? { stringValue: data.notes } : { isNull: true } },
-      { name: '15', value: { longValue: currentUser.data.user.id } },
+      { name: '15', value: { longValue: userId } },
     ];
 
     const result = await executeSQL(insertQuery, parameters);
-    
+
     if (!result || result.length === 0) {
       return { isSuccess: false, message: 'Failed to create student' };
     }
@@ -316,6 +385,9 @@ export async function createStudentAction(
       updated_by: row.updatedBy as number | undefined,
     };
 
+    // Audit log
+    logDataAccess({ userId, action: 'create', entityType: 'student', entityId: newStudent.id });
+
     revalidatePath('/students');
     return { isSuccess: true, message: 'Student created successfully', data: newStudent };
   } catch (error) {
@@ -334,18 +406,37 @@ export async function updateStudentAction(
       return { isSuccess: false, message: 'Unauthorized' };
     }
 
+    const userId = currentUser.data.user.id;
+    const roleNames = currentUser.data.roles.map(r => r.name);
+
+    // Rate limit check
+    if (!checkActionRateLimit(userId, 'updateStudent')) {
+      return { isSuccess: false, message: 'Rate limit exceeded. Please try again later.' };
+    }
+
     // Check if user has permission
-    const hasAccess = await hasToolAccess(currentUser.data.user.id, 'students');
+    const hasAccess = await hasToolAccess(userId, 'students');
     if (!hasAccess) {
       return { isSuccess: false, message: 'You do not have permission to update students' };
+    }
+
+    // Verify user has access to this specific student
+    const secCtx = await buildSecurityContext(userId, roleNames);
+    const verifyFilter = buildStudentAccessFilter(secCtx, 2);
+    const verifyResult = await executeSQL(
+      `SELECT id FROM students s WHERE s.id = $1${verifyFilter.sql}`,
+      [{ name: '1', value: { longValue: input.id } }, ...verifyFilter.parameters]
+    );
+    if (!verifyResult || verifyResult.length === 0) {
+      return { isSuccess: false, message: 'Student not found or access denied' };
     }
 
     // Validate input
     const validationResult = updateStudentSchema.safeParse(input);
     if (!validationResult.success) {
-      return { 
-        isSuccess: false, 
-        message: validationResult.error.errors[0].message 
+      return {
+        isSuccess: false,
+        message: validationResult.error.issues[0].message
       };
     }
 
@@ -354,7 +445,7 @@ export async function updateStudentAction(
 
     // Build dynamic update query
     const updateParts: string[] = [];
-    const parameters: any[] = [];
+    const parameters: SqlParameter[] = [];
     let paramIndex = 1;
 
     Object.entries(updateFields).forEach(([key, value]) => {
@@ -363,11 +454,11 @@ export async function updateStudentAction(
         if (value === null || value === '') {
           parameters.push({ name: `${paramIndex}`, value: { isNull: true } });
         } else {
-          parameters.push({ 
-            name: `${paramIndex}`, 
-            value: typeof value === 'number' 
-              ? { longValue: value } 
-              : { stringValue: String(value) } 
+          parameters.push({
+            name: `${paramIndex}`,
+            value: typeof value === 'number'
+              ? { longValue: value }
+              : { stringValue: String(value) }
           });
         }
         paramIndex++;
@@ -376,7 +467,7 @@ export async function updateStudentAction(
 
     // Add updated_by
     updateParts.push(`updated_by = $${paramIndex}`);
-    parameters.push({ name: `${paramIndex}`, value: { longValue: currentUser.data.user.id } });
+    parameters.push({ name: `${paramIndex}`, value: { longValue: userId } });
     paramIndex++;
 
     // Add updated_at
@@ -386,14 +477,14 @@ export async function updateStudentAction(
     parameters.push({ name: `${paramIndex}`, value: { longValue: id } });
 
     const updateQuery = `
-      UPDATE students 
+      UPDATE students
       SET ${updateParts.join(', ')}
       WHERE id = $${paramIndex}
       RETURNING *
     `;
 
     const result = await executeSQL(updateQuery, parameters);
-    
+
     if (!result || result.length === 0) {
       return { isSuccess: false, message: 'Failed to update student' };
     }
@@ -421,6 +512,9 @@ export async function updateStudentAction(
       updated_by: row.updatedBy as number | undefined,
     };
 
+    // Audit log
+    logDataAccess({ userId, action: 'update', entityType: 'student', entityId: id });
+
     revalidatePath('/students');
     revalidatePath(`/students/${id}`);
     return { isSuccess: true, message: 'Student updated successfully', data: updatedStudent };
@@ -438,43 +532,61 @@ export async function deleteStudentAction(id: number): Promise<ActionState<void>
       return { isSuccess: false, message: 'Unauthorized' };
     }
 
+    const userId = currentUser.data.user.id;
+    const roleNames = currentUser.data.roles.map(r => r.name);
+
+    // Rate limit check
+    if (!checkActionRateLimit(userId, 'deleteStudent')) {
+      return { isSuccess: false, message: 'Rate limit exceeded. Please try again later.' };
+    }
+
     // Check if user has permission
-    const hasAccess = await hasToolAccess(currentUser.data.user.id, 'students');
+    const hasAccess = await hasToolAccess(userId, 'students');
     if (!hasAccess) {
       return { isSuccess: false, message: 'You do not have permission to delete students' };
     }
 
+    // Verify user has access to this specific student
+    const secCtx = await buildSecurityContext(userId, roleNames);
+    const verifyFilter = buildStudentAccessFilter(secCtx, 2);
+    const verifyResult = await executeSQL(
+      `SELECT id FROM students s WHERE s.id = $1${verifyFilter.sql}`,
+      [{ name: '1', value: { longValue: id } }, ...verifyFilter.parameters]
+    );
+    if (!verifyResult || verifyResult.length === 0) {
+      return { isSuccess: false, message: 'Student not found or access denied' };
+    }
+
     // Check if student has active interventions
     const activeInterventionsCheck = await executeSQL(
-      `SELECT COUNT(*) as count FROM interventions 
+      `SELECT COUNT(*) as count FROM interventions
        WHERE student_id = $1 AND status IN ('planned', 'in_progress')`,
       [{ name: '1', value: { longValue: id } }]
     );
 
     const activeCount = activeInterventionsCheck?.[0]?.count as number || 0;
     if (activeCount > 0) {
-      return { 
-        isSuccess: false, 
-        message: 'Cannot delete student with active interventions. Please complete or cancel all interventions first.' 
+      return {
+        isSuccess: false,
+        message: 'Cannot delete student with active interventions. Please complete or cancel all interventions first.'
       };
     }
 
     // Soft delete by setting status to inactive
-    const result = await executeSQL(
-      `UPDATE students 
-       SET status = 'inactive', 
-           updated_by = $1, 
-           updated_at = CURRENT_TIMESTAMP 
+    await executeSQL(
+      `UPDATE students
+       SET status = 'inactive',
+           updated_by = $1,
+           updated_at = CURRENT_TIMESTAMP
        WHERE id = $2`,
       [
-        { name: '1', value: { longValue: currentUser.data.user.id } },
+        { name: '1', value: { longValue: userId } },
         { name: '2', value: { longValue: id } }
       ]
     );
 
-    if (!result || result.length === 0) {
-      return { isSuccess: false, message: 'Student not found' };
-    }
+    // Audit log
+    logDataAccess({ userId, action: 'delete', entityType: 'student', entityId: id });
 
     revalidatePath('/students');
     return { isSuccess: true, message: 'Student deleted successfully', data: undefined };

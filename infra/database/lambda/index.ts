@@ -34,7 +34,10 @@ const MIGRATION_FILES = [
   '007-intervention-indexes.sql',
   '008-intervention-data.sql',
   '009-intervention-tools.sql',
-  '010-navigation-tool-link.sql'
+  '010-navigation-tool-link.sql',
+  '011-user-schools.sql',
+  '012-user-students.sql',
+  '013-data-access-log.sql'
 ];
 
 export async function handler(event: CustomResourceEvent): Promise<any> {

@@ -1,9 +1,16 @@
 'use server';
 
+import { SqlParameter } from '@aws-sdk/client-rds-data';
 import { executeSQL } from '@/lib/db/data-api-adapter';
 import { ActionState } from '@/types/actions-types';
 import { School } from '@/types/intervention-types';
 import { getCurrentUserAction } from './get-current-user-action';
+import {
+  buildSecurityContext,
+  buildSchoolAccessFilter,
+  logDataAccessBatch,
+  checkActionRateLimit,
+} from '@/lib/security';
 
 // Helper to convert null to undefined
 const nullToUndefined = <T>(value: T | null): T | undefined => value === null ? undefined : value;
@@ -16,15 +23,35 @@ export async function getSchoolsAction(): Promise<ActionState<School[]>> {
       return { isSuccess: false, message: 'Unauthorized' };
     }
 
-    const query = `
-      SELECT 
-        id, name, district, address, phone, email, 
+    const userId = currentUser.data.user.id;
+    const roleNames = currentUser.data.roles.map(r => r.name);
+
+    // Rate limit check
+    if (!checkActionRateLimit(userId, 'getSchools')) {
+      return { isSuccess: false, message: 'Rate limit exceeded. Please try again later.' };
+    }
+
+    // Build security context and access filter
+    const secCtx = await buildSecurityContext(userId, roleNames);
+    const accessFilter = buildSchoolAccessFilter(secCtx, 1);
+
+    let query = `
+      SELECT
+        id, name, district, address, phone, email,
         principal_name, created_at, updated_at
       FROM schools
-      ORDER BY name
+      WHERE 1=1
     `;
 
-    const result = await executeSQL<any>(query);
+    const parameters: SqlParameter[] = [];
+
+    // Inject row-level access filter
+    query += accessFilter.sql;
+    parameters.push(...accessFilter.parameters);
+
+    query += ` ORDER BY name`;
+
+    const result = await executeSQL(query, parameters);
     const schools = result.map(row => ({
       id: row.id as number,
       name: row.name as string,
@@ -36,6 +63,13 @@ export async function getSchoolsAction(): Promise<ActionState<School[]>> {
       created_at: new Date(row.createdAt as string),
       updated_at: new Date(row.updatedAt as string),
     }));
+
+    // Audit log
+    logDataAccessBatch(
+      { userId, action: 'list', entityType: 'school' },
+      schools.map(s => s.id),
+      schools.length
+    );
 
     return { isSuccess: true, message: 'Schools fetched successfully', data: schools };
   } catch (error) {

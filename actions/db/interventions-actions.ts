@@ -2,17 +2,27 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
+import { SqlParameter } from '@aws-sdk/client-rds-data';
 import { executeSQL } from '@/lib/db/data-api-adapter';
 import { ActionState } from '@/types/actions-types';
-import { 
-  Intervention, 
-  InterventionWithDetails, 
+import {
+  Intervention,
+  InterventionWithDetails,
   CreateInterventionInput,
   InterventionType,
-  InterventionStatus 
+  InterventionStatus,
+  GradeLevel,
+  StudentStatus,
 } from '@/types/intervention-types';
 import { getCurrentUserAction } from './get-current-user-action';
 import { hasToolAccess } from '@/lib/auth/tool-helpers';
+import {
+  buildSecurityContext,
+  buildInterventionAccessFilter,
+  logDataAccess,
+  logDataAccessBatch,
+  checkActionRateLimit,
+} from '@/lib/security';
 
 // Helper function to convert null to undefined
 const nullToUndefined = <T>(value: T | null): T | undefined => value === null ? undefined : value;
@@ -39,6 +49,10 @@ const updateInterventionSchema = createInterventionSchema.partial().extend({
   completion_notes: z.string().optional(),
 });
 
+// Default and max pagination limits
+const DEFAULT_LIMIT = 100;
+const MAX_LIMIT = 500;
+
 // Get all interventions with optional filters
 export async function getInterventionsAction(filters?: {
   student_id?: number;
@@ -47,6 +61,8 @@ export async function getInterventionsAction(filters?: {
   assigned_to?: number;
   start_date?: string;
   end_date?: string;
+  limit?: number;
+  offset?: number;
 }): Promise<ActionState<InterventionWithDetails[]>> {
   try {
     const currentUser = await getCurrentUserAction();
@@ -54,14 +70,25 @@ export async function getInterventionsAction(filters?: {
       return { isSuccess: false, message: 'Unauthorized' };
     }
 
+    const userId = currentUser.data.user.id;
+    const roleNames = currentUser.data.roles.map(r => r.name);
+
+    // Rate limit check
+    if (!checkActionRateLimit(userId, 'getInterventions')) {
+      return { isSuccess: false, message: 'Rate limit exceeded. Please try again later.' };
+    }
+
+    // Build security context
+    const secCtx = await buildSecurityContext(userId, roleNames);
+
     let query = `
-      SELECT 
+      SELECT
         i.id, i.student_id, i.program_id, i.type, i.status,
         i.title, i.description, i.goals, i.start_date, i.end_date,
         i.frequency, i.duration_minutes, i.location, i.assigned_to,
         i.created_by, i.created_at, i.updated_at, i.completed_at,
         i.completion_notes,
-        s.student_id as student_number, s.first_name, s.last_name, s.grade,
+        s.student_id as student_number, s.first_name, s.last_name, s.grade, s.status as student_status,
         p.name as program_name,
         u.first_name as assigned_first_name, u.last_name as assigned_last_name
       FROM interventions i
@@ -70,8 +97,8 @@ export async function getInterventionsAction(filters?: {
       LEFT JOIN users u ON i.assigned_to = u.id
       WHERE 1=1
     `;
-    
-    const parameters: any[] = [];
+
+    const parameters: SqlParameter[] = [];
     let paramIndex = 1;
 
     if (filters?.student_id) {
@@ -110,7 +137,22 @@ export async function getInterventionsAction(filters?: {
       paramIndex++;
     }
 
+    // Inject row-level access filter
+    const accessFilter = buildInterventionAccessFilter(secCtx, paramIndex);
+    query += accessFilter.sql;
+    parameters.push(...accessFilter.parameters);
+    paramIndex = accessFilter.nextParamIndex;
+
+    // Pagination
+    const limit = Math.min(filters?.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
+    const offset = filters?.offset ?? 0;
+
     query += ` ORDER BY i.start_date DESC, i.created_at DESC`;
+    query += ` LIMIT $${paramIndex}`;
+    parameters.push({ name: `${paramIndex}`, value: { longValue: limit } });
+    paramIndex++;
+    query += ` OFFSET $${paramIndex}`;
+    parameters.push({ name: `${paramIndex}`, value: { longValue: offset } });
 
     const result = await executeSQL(query, parameters);
     const interventions = result.map(row => ({
@@ -138,9 +180,9 @@ export async function getInterventionsAction(filters?: {
         student_id: row.studentNumber as string,
         first_name: row.firstName as string,
         last_name: row.lastName as string,
-        grade: row.grade as any,
+        grade: row.grade as GradeLevel,
         middle_name: undefined,
-        status: 'active' as any,
+        status: row.studentStatus as StudentStatus,
         created_at: new Date(),
         updated_at: new Date(),
       },
@@ -159,6 +201,13 @@ export async function getInterventionsAction(filters?: {
       } : undefined,
     }));
 
+    // Audit log
+    logDataAccessBatch(
+      { userId, action: 'list', entityType: 'intervention' },
+      interventions.map(i => i.id),
+      interventions.length
+    );
+
     return { isSuccess: true, message: 'Interventions fetched successfully', data: interventions };
   } catch (error) {
     // Error logged: Error fetching interventions
@@ -174,26 +223,39 @@ export async function getInterventionByIdAction(id: number): Promise<ActionState
       return { isSuccess: false, message: 'Unauthorized' };
     }
 
-    // Get intervention details
+    const userId = currentUser.data.user.id;
+    const roleNames = currentUser.data.roles.map(r => r.name);
+
+    // Rate limit check
+    if (!checkActionRateLimit(userId, 'getInterventionById')) {
+      return { isSuccess: false, message: 'Rate limit exceeded. Please try again later.' };
+    }
+
+    // Build security context and verify access
+    const secCtx = await buildSecurityContext(userId, roleNames);
+    const accessFilter = buildInterventionAccessFilter(secCtx, 2);
+
+    // Get intervention details with access filter
     const interventionQuery = `
-      SELECT 
+      SELECT
         i.id, i.student_id, i.program_id, i.type, i.status,
         i.title, i.description, i.goals, i.start_date, i.end_date,
         i.frequency, i.duration_minutes, i.location, i.assigned_to,
         i.created_by, i.created_at, i.updated_at, i.completed_at,
         i.completion_notes,
-        s.student_id as student_number, s.first_name, s.last_name, s.grade,
+        s.student_id as student_number, s.first_name, s.last_name, s.grade, s.status as student_status,
         p.name as program_name,
         u.first_name as assigned_first_name, u.last_name as assigned_last_name
       FROM interventions i
       LEFT JOIN students s ON i.student_id = s.id
       LEFT JOIN intervention_programs p ON i.program_id = p.id
       LEFT JOIN users u ON i.assigned_to = u.id
-      WHERE i.id = $1
+      WHERE i.id = $1${accessFilter.sql}
     `;
-    
+
     const interventionResult = await executeSQL(interventionQuery, [
-      { name: '1', value: { longValue: id } }
+      { name: '1', value: { longValue: id } },
+      ...accessFilter.parameters,
     ]);
 
     if (!interventionResult || interventionResult.length === 0) {
@@ -226,9 +288,9 @@ export async function getInterventionByIdAction(id: number): Promise<ActionState
         student_id: row.studentNumber as string,
         first_name: row.firstName as string,
         last_name: row.lastName as string,
-        grade: row.grade as any,
+        grade: row.grade as GradeLevel,
         middle_name: undefined,
-        status: 'active' as any,
+        status: row.studentStatus as StudentStatus,
         created_at: new Date(),
         updated_at: new Date(),
       },
@@ -257,7 +319,7 @@ export async function getInterventionByIdAction(id: number): Promise<ActionState
       LEFT JOIN users u ON it.user_id = u.id
       WHERE it.intervention_id = $1
     `;
-    
+
     const teamResult = await executeSQL(teamQuery, [
       { name: '1', value: { longValue: id } }
     ]);
@@ -274,14 +336,14 @@ export async function getInterventionByIdAction(id: number): Promise<ActionState
 
     // Get recent sessions
     const sessionsQuery = `
-      SELECT id, session_date, duration_minutes, attended, 
+      SELECT id, session_date, duration_minutes, attended,
              progress_notes, challenges, next_steps
       FROM intervention_sessions
       WHERE intervention_id = $1
       ORDER BY session_date DESC
       LIMIT 10
     `;
-    
+
     const sessionsResult = await executeSQL(sessionsQuery, [
       { name: '1', value: { longValue: id } }
     ]);
@@ -304,13 +366,13 @@ export async function getInterventionByIdAction(id: number): Promise<ActionState
 
     // Get goals
     const goalsQuery = `
-      SELECT id, goal_text, target_date, is_achieved, 
+      SELECT id, goal_text, target_date, is_achieved,
              achieved_date, evidence
       FROM intervention_goals
       WHERE intervention_id = $1
       ORDER BY target_date
     `;
-    
+
     const goalsResult = await executeSQL(goalsQuery, [
       { name: '1', value: { longValue: id } }
     ]);
@@ -329,6 +391,9 @@ export async function getInterventionByIdAction(id: number): Promise<ActionState
       }));
     }
 
+    // Audit log
+    logDataAccess({ userId, action: 'view', entityType: 'intervention', entityId: id });
+
     return { isSuccess: true, message: 'Intervention fetched successfully', data: intervention };
   } catch (error) {
     // Error logged: Error fetching intervention
@@ -346,8 +411,15 @@ export async function createInterventionAction(
       return { isSuccess: false, message: 'Unauthorized' };
     }
 
+    const userId = currentUser.data.user.id;
+
+    // Rate limit check
+    if (!checkActionRateLimit(userId, 'createIntervention')) {
+      return { isSuccess: false, message: 'Rate limit exceeded. Please try again later.' };
+    }
+
     // Check permissions
-    const hasAccess = await hasToolAccess(currentUser.data.user.id, 'interventions');
+    const hasAccess = await hasToolAccess(userId, 'interventions');
     if (!hasAccess) {
       return { isSuccess: false, message: 'You do not have permission to create interventions' };
     }
@@ -355,9 +427,9 @@ export async function createInterventionAction(
     // Validate input
     const validationResult = createInterventionSchema.safeParse(input);
     if (!validationResult.success) {
-      return { 
-        isSuccess: false, 
-        message: validationResult.error.errors[0].message 
+      return {
+        isSuccess: false,
+        message: validationResult.error.issues[0].message
       };
     }
 
@@ -374,7 +446,7 @@ export async function createInterventionAction(
       ) RETURNING *
     `;
 
-    const parameters = [
+    const parameters: SqlParameter[] = [
       { name: '1', value: { longValue: data.student_id } },
       { name: '2', value: data.program_id ? { longValue: data.program_id } : { isNull: true } },
       { name: '3', value: { stringValue: data.type } },
@@ -388,11 +460,11 @@ export async function createInterventionAction(
       { name: '11', value: data.duration_minutes ? { longValue: data.duration_minutes } : { isNull: true } },
       { name: '12', value: data.location ? { stringValue: data.location } : { isNull: true } },
       { name: '13', value: data.assigned_to ? { longValue: data.assigned_to } : { isNull: true } },
-      { name: '14', value: { longValue: currentUser.data.user.id } },
+      { name: '14', value: { longValue: userId } },
     ];
 
     const result = await executeSQL(insertQuery, parameters);
-    
+
     if (!result || result.length === 0) {
       return { isSuccess: false, message: 'Failed to create intervention' };
     }
@@ -420,6 +492,9 @@ export async function createInterventionAction(
       completion_notes: nullToUndefined(row.completionNotes as string | null),
     };
 
+    // Audit log
+    logDataAccess({ userId, action: 'create', entityType: 'intervention', entityId: newIntervention.id });
+
     revalidatePath('/interventions');
     revalidatePath(`/students/${data.student_id}`);
     return { isSuccess: true, message: 'Intervention created successfully', data: newIntervention };
@@ -439,18 +514,37 @@ export async function updateInterventionAction(
       return { isSuccess: false, message: 'Unauthorized' };
     }
 
+    const userId = currentUser.data.user.id;
+    const roleNames = currentUser.data.roles.map(r => r.name);
+
+    // Rate limit check
+    if (!checkActionRateLimit(userId, 'updateIntervention')) {
+      return { isSuccess: false, message: 'Rate limit exceeded. Please try again later.' };
+    }
+
     // Check permissions
-    const hasAccess = await hasToolAccess(currentUser.data.user.id, 'interventions');
+    const hasAccess = await hasToolAccess(userId, 'interventions');
     if (!hasAccess) {
       return { isSuccess: false, message: 'You do not have permission to update interventions' };
+    }
+
+    // Verify access to this intervention
+    const secCtx = await buildSecurityContext(userId, roleNames);
+    const verifyFilter = buildInterventionAccessFilter(secCtx, 2);
+    const verifyResult = await executeSQL(
+      `SELECT i.id FROM interventions i LEFT JOIN students s ON i.student_id = s.id WHERE i.id = $1${verifyFilter.sql}`,
+      [{ name: '1', value: { longValue: input.id } }, ...verifyFilter.parameters]
+    );
+    if (!verifyResult || verifyResult.length === 0) {
+      return { isSuccess: false, message: 'Intervention not found or access denied' };
     }
 
     // Validate input
     const validationResult = updateInterventionSchema.safeParse(input);
     if (!validationResult.success) {
-      return { 
-        isSuccess: false, 
-        message: validationResult.error.errors[0].message 
+      return {
+        isSuccess: false,
+        message: validationResult.error.issues[0].message
       };
     }
 
@@ -458,7 +552,7 @@ export async function updateInterventionAction(
 
     // Build dynamic update query
     const updateParts: string[] = [];
-    const parameters: any[] = [];
+    const parameters: SqlParameter[] = [];
     let paramIndex = 1;
 
     // Handle status change to completed
@@ -472,11 +566,11 @@ export async function updateInterventionAction(
         if (value === null || value === '') {
           parameters.push({ name: `${paramIndex}`, value: { isNull: true } });
         } else {
-          parameters.push({ 
-            name: `${paramIndex}`, 
-            value: typeof value === 'number' 
-              ? { longValue: value } 
-              : { stringValue: String(value) } 
+          parameters.push({
+            name: `${paramIndex}`,
+            value: typeof value === 'number'
+              ? { longValue: value }
+              : { stringValue: String(value) }
           });
         }
         paramIndex++;
@@ -490,14 +584,14 @@ export async function updateInterventionAction(
     parameters.push({ name: `${paramIndex}`, value: { longValue: id } });
 
     const updateQuery = `
-      UPDATE interventions 
+      UPDATE interventions
       SET ${updateParts.join(', ')}
       WHERE id = $${paramIndex}
       RETURNING *
     `;
 
     const result = await executeSQL(updateQuery, parameters);
-    
+
     if (!result || result.length === 0) {
       return { isSuccess: false, message: 'Failed to update intervention' };
     }
@@ -525,6 +619,9 @@ export async function updateInterventionAction(
       completion_notes: nullToUndefined(row.completionNotes as string | null),
     };
 
+    // Audit log
+    logDataAccess({ userId, action: 'update', entityType: 'intervention', entityId: id });
+
     revalidatePath('/interventions');
     revalidatePath(`/interventions/${id}`);
     return { isSuccess: true, message: 'Intervention updated successfully', data: updatedIntervention };
@@ -542,38 +639,56 @@ export async function deleteInterventionAction(id: number): Promise<ActionState<
       return { isSuccess: false, message: 'Unauthorized' };
     }
 
+    const userId = currentUser.data.user.id;
+    const roleNames = currentUser.data.roles.map(r => r.name);
+
+    // Rate limit check
+    if (!checkActionRateLimit(userId, 'deleteIntervention')) {
+      return { isSuccess: false, message: 'Rate limit exceeded. Please try again later.' };
+    }
+
     // Check permissions
-    const hasAccess = await hasToolAccess(currentUser.data.user.id, 'interventions');
+    const hasAccess = await hasToolAccess(userId, 'interventions');
     if (!hasAccess) {
       return { isSuccess: false, message: 'You do not have permission to delete interventions' };
+    }
+
+    // Verify access to this intervention
+    const secCtx = await buildSecurityContext(userId, roleNames);
+    const verifyFilter = buildInterventionAccessFilter(secCtx, 2);
+    const verifyResult = await executeSQL(
+      `SELECT i.id FROM interventions i LEFT JOIN students s ON i.student_id = s.id WHERE i.id = $1${verifyFilter.sql}`,
+      [{ name: '1', value: { longValue: id } }, ...verifyFilter.parameters]
+    );
+    if (!verifyResult || verifyResult.length === 0) {
+      return { isSuccess: false, message: 'Intervention not found or access denied' };
     }
 
     // Delete related records first (cascade)
     await executeSQL('DELETE FROM intervention_sessions WHERE intervention_id = $1', [
       { name: '1', value: { longValue: id } }
     ]);
-    
+
     await executeSQL('DELETE FROM intervention_goals WHERE intervention_id = $1', [
       { name: '1', value: { longValue: id } }
     ]);
-    
+
     await executeSQL('DELETE FROM intervention_team WHERE intervention_id = $1', [
       { name: '1', value: { longValue: id } }
     ]);
-    
+
     await executeSQL('DELETE FROM intervention_attachments WHERE intervention_id = $1', [
       { name: '1', value: { longValue: id } }
     ]);
 
     // Delete the intervention
-    const result = await executeSQL(
+    await executeSQL(
       'DELETE FROM interventions WHERE id = $1',
       [{ name: '1', value: { longValue: id } }]
     );
 
-    if (!result || result.length === 0) {
-      return { isSuccess: false, message: 'Intervention not found' };
-    }
+    // Audit log
+    logDataAccess({ userId, action: 'delete', entityType: 'intervention', entityId: id });
 
     revalidatePath('/interventions');
     return { isSuccess: true, message: 'Intervention deleted successfully', data: undefined };
@@ -582,3 +697,4 @@ export async function deleteInterventionAction(id: number): Promise<ActionState<
     return { isSuccess: false, message: 'Failed to delete intervention' };
   }
 }
+

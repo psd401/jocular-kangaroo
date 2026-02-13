@@ -77,11 +77,11 @@ export async function getCurrentUserAction(): Promise<
       })
       user = newUserResult as unknown as SelectUser
 
-      // Assign default "student" role to new users
-      const studentRoleResult = await getRoleByName("student")
-      if (studentRoleResult.length > 0) {
-        const studentRole = studentRoleResult[0]
-        const roleId = studentRole.id as number
+      // Assign default "Teacher" role to new users
+      const defaultRoleResult = await getRoleByName("Teacher")
+      if (defaultRoleResult.length > 0) {
+        const defaultRole = defaultRoleResult[0]
+        const roleId = defaultRole.id as number
         await assignRoleToUser(user!.id, roleId)
       }
     }

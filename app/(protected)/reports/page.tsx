@@ -1,5 +1,11 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart3, FileText, TrendingUp, Users } from 'lucide-react';
+"use client"
+
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { BarChart3, TrendingUp, Users, Briefcase } from "lucide-react"
+import { InterventionSummaryTab } from "./_components/intervention-summary-tab"
+import { ProgressReportsTab } from "./_components/progress-reports-tab"
+import { StudentReportsTab } from "./_components/student-reports-tab"
+import { StaffWorkloadTab } from "./_components/staff-workload-tab"
 
 export default function ReportsPage() {
   return (
@@ -11,96 +17,39 @@ export default function ReportsPage() {
         </p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5" />
-              Intervention Summary
-            </CardTitle>
-            <CardDescription>
-              Overview of all active interventions
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Click to view intervention summary report...
-            </p>
-          </CardContent>
-        </Card>
+      <Tabs defaultValue="summary" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="summary" className="gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Intervention Summary
+          </TabsTrigger>
+          <TabsTrigger value="progress" className="gap-2">
+            <TrendingUp className="h-4 w-4" />
+            Progress Reports
+          </TabsTrigger>
+          <TabsTrigger value="students" className="gap-2">
+            <Users className="h-4 w-4" />
+            Student Reports
+          </TabsTrigger>
+          <TabsTrigger value="staff" className="gap-2">
+            <Briefcase className="h-4 w-4" />
+            Staff & Workload
+          </TabsTrigger>
+        </TabsList>
 
-        <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              Progress Reports
-            </CardTitle>
-            <CardDescription>
-              Student progress and goal achievement
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Click to view progress reports...
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Student Reports
-            </CardTitle>
-            <CardDescription>
-              Individual student intervention history
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Click to view student reports...
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Custom Reports
-            </CardTitle>
-            <CardDescription>
-              Generate custom intervention reports
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Click to create custom report...
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Report Generation</CardTitle>
-          <CardDescription>
-            Full reporting functionality coming soon
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            The reports module will include:
-          </p>
-          <ul className="list-disc list-inside mt-2 space-y-1 text-sm text-muted-foreground">
-            <li>Intervention effectiveness analysis</li>
-            <li>Student progress tracking over time</li>
-            <li>Program success metrics</li>
-            <li>Staff workload reports</li>
-            <li>Export to PDF and Excel formats</li>
-          </ul>
-        </CardContent>
-      </Card>
+        <TabsContent value="summary">
+          <InterventionSummaryTab />
+        </TabsContent>
+        <TabsContent value="progress">
+          <ProgressReportsTab />
+        </TabsContent>
+        <TabsContent value="students">
+          <StudentReportsTab />
+        </TabsContent>
+        <TabsContent value="staff">
+          <StaffWorkloadTab />
+        </TabsContent>
+      </Tabs>
     </div>
-  );
+  )
 }

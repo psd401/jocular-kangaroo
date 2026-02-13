@@ -8,7 +8,6 @@ const PUBLIC_PATHS = [
   "/signout",
   "/api/auth",
   "/api/public",
-  "/api/health",
   "/api/ping",
   "/api/auth/federated-signout",
   "/auth/error",
