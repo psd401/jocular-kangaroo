@@ -68,15 +68,15 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
-    "drizzle-orm": "^0.44.5",
+    "drizzle-orm": "^0.45.2",
     "escape-html": "^1.0.3",
     "framer-motion": "^12.23.18",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.544.0",
     "mammoth": "^1.11.0",
     "nanoid": "^5.1.6",
-    "next": "^15.5.3",
-    "next-auth": "^5.0.0-beta.29",
+    "next": "15.5.21",
+    "next-auth": "5.0.0-beta.32",
     "pdf-lib": "^1.17.1",
     "pdf-parse": "^1.1.1",
     "pdfjs-dist": "^5.4.149",
@@ -107,7 +107,6 @@
     "@types/react": "^19.1.13",
     "@types/react-dom": "^19.1.9",
     "babel-loader": "^10.0.0",
-    "copy-webpack-plugin": "^13.0.1",
     "dotenv": "^17.2.2",
     "drizzle-kit": "^0.31.4",
     "eslint": "^9.36.0",
@@ -115,5 +114,14 @@
     "jest": "^30.1.3",
     "jest-environment-jsdom": "^30.1.2",
     "typescript": "^5.9.2"
+  },
+  "overrides": {
+    "@mdxeditor/editor": {
+      "js-yaml": "4.3.1"
+    },
+    "next": {
+      "postcss": "8.5.23",
+      "sharp": "0.35.0"
+    }
   }
 }

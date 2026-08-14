@@ -1,6 +1,5 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
 
 // Public paths that don't require authentication
 const PUBLIC_PATHS = [
@@ -14,9 +13,29 @@ const PUBLIC_PATHS = [
   "/auth/error",
 ];
 
-export default auth((req) => {
+interface AuthMiddlewareRequest {
+  nextUrl: URL;
+  auth: unknown;
+}
+
+function hasSessionUser(value: unknown): value is { user: { id: string } } {
+  if (typeof value !== "object" || value === null || !("user" in value)) {
+    return false;
+  }
+
+  const user = value.user;
+  return (
+    typeof user === "object" &&
+    user !== null &&
+    "id" in user &&
+    typeof user.id === "string" &&
+    user.id.trim().length > 0
+  );
+}
+
+export function handleAuthRequest(req: AuthMiddlewareRequest) {
   const { nextUrl, auth } = req;
-  const isLoggedIn = !!auth;
+  const isLoggedIn = hasSessionUser(auth);
 
   // Check if path is public
   const isPublicPath = PUBLIC_PATHS.some(path => 
@@ -43,7 +62,9 @@ export default auth((req) => {
   }
 
   return NextResponse.next();
-});
+}
+
+export default auth(handleAuthRequest);
 
 export const config = {
   matcher: [
