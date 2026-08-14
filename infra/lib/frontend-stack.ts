@@ -29,7 +29,7 @@ export class FrontendStack extends cdk.Stack {
             phases: {
               preBuild: {
                 commands: [
-                  'npm ci --legacy-peer-deps'
+                  'npm ci'
                 ]
               },
               build: {

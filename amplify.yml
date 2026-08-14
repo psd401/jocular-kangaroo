@@ -14,7 +14,7 @@ applications:
               echo "Current directory:" && pwd
               echo "Directory contents:" && ls -la
             # Install dependencies (include dev for CSS tools if needed as backup)
-            - npm ci --legacy-peer-deps --include=dev
+            - npm ci --include=dev
             # Check if UI components exist after install
             - |
               echo "=== UI Components Check ==="

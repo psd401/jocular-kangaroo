@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z, type ZodIssue } from 'zod';
 
 /**
  * Common validation schemas for API routes
@@ -115,7 +115,7 @@ export async function validateRequest<T>(
     const result = schema.safeParse(body);
     
     if (!result.success) {
-      const errors = result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
+      const errors = result.error.issues.map((e: ZodIssue) => `${e.path.join('.')}: ${e.message}`).join(', ');
       return { data: null, error: errors };
     }
     
@@ -136,7 +136,7 @@ export function validateSearchParams<T>(
   const result = schema.safeParse(params);
   
   if (!result.success) {
-    const errors = result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
+    const errors = result.error.issues.map((e: ZodIssue) => `${e.path.join('.')}: ${e.message}`).join(', ');
     return { data: null, error: errors };
   }
   

@@ -12,7 +12,8 @@ const customJestConfig = {
   testEnvironment: 'jest-environment-jsdom',
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
-    'lucide-react': '<rootDir>/tests/mocks/lucide-react.js'
+    'lucide-react': '<rootDir>/tests/mocks/lucide-react.js',
+    '^nanoid$': '<rootDir>/tests/mocks/nanoid.js'
   },
   setupFiles: ['<rootDir>/.jest/setEnvVars.js'],
   transformIgnorePatterns: [
@@ -20,4 +21,4 @@ const customJestConfig = {
   ]
 };
 
-module.exports = createJestConfig(customJestConfig); 
+module.exports = createJestConfig(customJestConfig);
