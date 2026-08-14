@@ -43,14 +43,14 @@ const formSchema = z.object({
   student_id: z.string().min(1, 'Student is required'),
   program_id: z.string().optional(),
   type: z.enum(['academic', 'behavioral', 'social_emotional', 'attendance', 'health', 'other'], {
-    required_error: 'Intervention type is required',
+    message: 'Intervention type is required',
   }),
   status: z.enum(['planned', 'in_progress', 'completed', 'discontinued', 'on_hold']).optional(),
   title: z.string().min(1, 'Title is required').max(200),
   description: z.string().optional(),
   goals: z.string().optional(),
   start_date: z.date({
-    required_error: 'Start date is required',
+    message: 'Start date is required',
   }),
   end_date: z.date().optional(),
   frequency: z.string().optional(),
