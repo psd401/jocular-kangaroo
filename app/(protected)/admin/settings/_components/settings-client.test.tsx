@@ -9,6 +9,11 @@ jest.mock('@/components/ui/use-toast', () => ({
   })
 }))
 
+// Keep this client-component test isolated from the server-only AWS SDK graph.
+jest.mock('@/actions/db/settings-actions', () => ({
+  getSettingActualValueAction: jest.fn()
+}))
+
 // Mock fetch
 global.fetch = jest.fn()
 
