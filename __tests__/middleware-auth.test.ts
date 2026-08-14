@@ -43,6 +43,16 @@ describe("authentication middleware", () => {
     expect(response.headers.get("location")).toContain("/api/auth/signin");
   });
 
+  it.each([
+    ["missing", { user: {} }],
+    ["empty", { user: { id: "" } }],
+  ])("fails closed for a session with a %s user id", (_case, auth) => {
+    const response = handleAuthRequest(request("/dashboard", auth));
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toContain("/api/auth/signin");
+  });
+
   it("allows a protected request with a concrete session user", () => {
     const response = handleAuthRequest(
       request("/dashboard", { user: { id: "user-123" } })

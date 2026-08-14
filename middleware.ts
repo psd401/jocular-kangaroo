@@ -18,12 +18,18 @@ interface AuthMiddlewareRequest {
   auth: unknown;
 }
 
-function hasSessionUser(value: unknown): value is { user: unknown } {
+function hasSessionUser(value: unknown): value is { user: { id: string } } {
+  if (typeof value !== "object" || value === null || !("user" in value)) {
+    return false;
+  }
+
+  const user = value.user;
   return (
-    typeof value === "object" &&
-    value !== null &&
-    "user" in value &&
-    !!value.user
+    typeof user === "object" &&
+    user !== null &&
+    "id" in user &&
+    typeof user.id === "string" &&
+    user.id.trim().length > 0
   );
 }
 
