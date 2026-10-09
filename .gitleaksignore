@@ -1,0 +1,5 @@
+# gitleaks baseline: historical findings reviewed 2026-10-09 (Hagel). One fingerprint per line.
+# New findings are NOT covered: anything not listed here still fails security-scan.
+#
+# False positive: a Secrets Manager ARN example in docs/DEPLOYMENT.md.
+2b95d866f848dba2d3c081d78168e25e248826e2:docs/DEPLOYMENT.md:generic-api-key:137
