@@ -22,10 +22,10 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v5
+      uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
     
     - name: Setup Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v5
+      uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
@@ -59,15 +59,15 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v5
+      uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
     
     - name: Setup Node.js
-      uses: actions/setup-node@v5
+      uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
       with:
         node-version: 20.x
     
     - name: Cache root dependencies
-      uses: actions/cache@v4
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
       with:
         path: ~/.npm
         key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
