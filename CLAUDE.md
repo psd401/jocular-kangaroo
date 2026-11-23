@@ -6,19 +6,19 @@ Jocular Kangaroo codebase guidance for Claude Code. Optimized for token efficien
 
 ```bash
 # Development
-npm run dev                # Start dev server (port 3000)
-npm run build              # Build for production
-npm run lint               # MUST pass before commit
-npm run typecheck          # MUST pass before commit
+bun run dev                # Start dev server (port 3000)
+bun run build              # Build for production
+bun run lint               # MUST pass before commit
+bun run typecheck          # MUST pass before commit
 
 # Infrastructure (from /infra)
-cd infra && npx cdk deploy --all                                # Deploy all stacks
-cd infra && npx cdk deploy JocularKangaroo-FrontendStack-Dev   # Deploy single stack
+cd infra && bun run cdk deploy --all                                # Deploy all stacks
+cd infra && bun run cdk deploy JocularKangaroo-FrontendStack-Dev   # Deploy single stack
 ```
 
 ## 🎯 Critical Rules
 
-1. **Type Safety**: NO `any` types. Full TypeScript. Run `npm run lint` and `npm run typecheck` on ENTIRE codebase before commits.
+1. **Type Safety**: NO `any` types. Full TypeScript. Run `bun run lint` and `bun run typecheck` on ENTIRE codebase before commits.
 2. **Database Migrations**: Files 001-005 are IMMUTABLE. Only add migrations 006+. Add filename to `MIGRATION_FILES` array in `/infra/database/lambda/index.ts`.
 3. **Logging**: NEVER use `console.log/error`. Always use `@/lib/logger`. See patterns below.
 4. **Git Flow**: PRs target `dev` branch, never `main`. Write detailed commit messages.
@@ -126,8 +126,8 @@ library/API documentation. This means you should automatically use the Context7 
 tools to resolve library id and get library docs without me having to explicitly ask.
 
 ### BEFORE ANY COMMIT:
-1. **MUST RUN**: `npm run lint` - Fix ALL errors
-2. **MUST RUN**: `npm run typecheck` - Fix ALL type errors
+1. **MUST RUN**: `bun run lint` - Fix ALL errors
+2. **MUST RUN**: `bun run typecheck` - Fix ALL type errors
 3. **NO EXCEPTIONS**: Both must pass with zero errors
 
 ### Logging Standards:

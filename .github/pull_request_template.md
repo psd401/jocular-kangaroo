@@ -7,8 +7,8 @@
 - [ ] No `console.*` calls in production/shared code; all server-side logging uses Winston logger (`@/lib/logger`)
 - [ ] **No imports or usage of `@/lib/logger` in client components or client hooks**
 - [ ] Client code uses `console.error` only for actionable errors in development (never for routine info)
-- [ ] Lint passes (`npm run lint`)
-- [ ] All tests pass (`npm test`)
+- [ ] Lint passes (`bun run lint`)
+- [ ] All tests pass (`bun run test`)
 - [ ] Types/interfaces follow project conventions
 - [ ] No type assertions (`as any`) without justification
 - [ ] Database field names use snake_case (automatic camelCase transformation handled by data API adapter)

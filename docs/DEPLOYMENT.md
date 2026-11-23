@@ -4,8 +4,8 @@ This guide explains how to deploy the Jocular Kangaroo AWS infrastructure using 
 
 ## Prerequisites
 - AWS CLI installed and configured with credentials for your AWS account
-- AWS CDK installed globally (`npm install -g aws-cdk`)
-- Node.js 20.x and npm installed
+- AWS CDK CLI: installed with the `infra/` dependencies; run it as `bun run cdk` from `infra/`
+- Node.js 20.x and bun installed (npm is still used inside `infra/database/lambda`)
 - TypeScript installed in the Lambda directory (will be installed during deployment)
 - **IMPORTANT: AWS account must have available VPC capacity (default limit is 5 VPCs)**
 
@@ -22,7 +22,7 @@ First, install the infrastructure dependencies:
 
 ```bash
 cd infra
-npm install
+bun install
 ```
 
 If deploying the Lambda function, ensure TypeScript is installed:
@@ -162,10 +162,10 @@ After deploying the dev environment:
 cd ..
 
 # Install dependencies
-npm install
+bun install
 
 # Run the development server
-npm run dev
+bun run dev
 ```
 
 The application will be available at http://localhost:3000

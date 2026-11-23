@@ -3,10 +3,10 @@
 Thank you for contributing to this project! Please follow these standards to ensure code quality, maintainability, and security.
 
 ## Package Manager
-- **Use npm exclusively** as the package manager for this project.
-- Do not use yarn, pnpm, or other package managers.
-- Always use `npm install` to install dependencies, not `yarn install` or `pnpm install`.
-- Commit `package-lock.json` to the repository (never `yarn.lock` or `pnpm-lock.yaml`).
+- **Use bun** as the package manager (PSD org standard, psd-dev-standards standards/02).
+- Do not use npm, yarn or pnpm in the app or `infra/`.
+- Install with `bun install`; CI uses `bun install --frozen-lockfile`.
+- Commit `bun.lock` (never `package-lock.json`, `yarn.lock` or `pnpm-lock.yaml`). Exception: `infra/database/lambda/` keeps npm and its `package-lock.json`, because CDK bundles that Lambda with npm in the Lambda Node.js bundling image.
 
 ## Logging
 - **Do NOT use** `console.log`, `console.error`, `console.warn`, `console.info`, or `console.debug` in any production or shared code.
@@ -17,10 +17,10 @@ Thank you for contributing to this project! Please follow these standards to ens
 - Never add logs for routine permission checks, database queries, or other noise.
 
 ## Linting & Formatting
-- All code must pass ESLint (`npm run lint`).
+- All code must pass ESLint (`bun run lint`).
 - The `no-console` rule is enforced: no direct `console.*` calls are allowed in production/shared code. Client code may use `console.error` for actionable errors in development only.
 - Use Prettier or the project's formatting rules for code style.
-- Run `npm run typecheck` to ensure TypeScript types are correct before committing.
+- Run `bun run typecheck` to ensure TypeScript types are correct before committing.
 
 ## TypeScript & Types
 - Use TypeScript for all code.
@@ -81,7 +81,7 @@ Thank you for contributing to this project! Please follow these standards to ens
 - Import server-side APIs from the `/server` sub-path (e.g., `aws-amplify/auth/server`).
 
 ### Performance Optimization
-- **Development**: Use `npm run dev --turbo` for faster local development with Turbopack.
+- **Development**: Use `bun run dev --turbo` for faster local development with Turbopack.
 - **Imports**: Import specific components rather than entire libraries:
   ```typescript
   // Good
@@ -140,14 +140,14 @@ When documenting code or in comments, include file references in the format `pat
 - Include tests for authentication flows and protected routes.
 - Test error scenarios and edge cases.
 - Do not break existing tests.
-- Run all tests before submitting a PR (`npm test`).
+- Run all tests before submitting a PR (`bun run test`).
 
 ## Development Workflow
 
 ### Before Committing
-1. Run `npm run lint` to check for linting errors.
-2. Run `npm run typecheck` to verify TypeScript types.
-3. Run `npm test` to ensure all tests pass.
+1. Run `bun run lint` to check for linting errors.
+2. Run `bun run typecheck` to verify TypeScript types.
+3. Run `bun run test` to ensure all tests pass.
 4. Update `CLAUDE.md` if you've made architectural changes.
 5. Update relevant documentation for API changes.
 

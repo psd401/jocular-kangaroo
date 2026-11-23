@@ -19,4 +19,4 @@ export const users = pgTable('users', {
 });
 
 // This file will be populated with all tables after running:
-// npm run db:pull
+// bun run db:pull

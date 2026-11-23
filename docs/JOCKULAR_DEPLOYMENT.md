@@ -6,8 +6,8 @@ This guide provides step-by-step instructions for deploying the Jocular Kangaroo
 
 1. **AWS Account** with appropriate permissions
 2. **AWS CLI** configured with credentials
-3. **AWS CDK CLI** installed: `npm install -g aws-cdk`
-4. **Node.js 18+** and npm
+3. **AWS CDK CLI**: installed with the `infra/` dependencies; run it as `bun run cdk` from `infra/`
+4. **Node.js 20** and bun
 5. **Domain name** (optional, for custom domain)
 
 ## Pre-Deployment Setup
@@ -114,7 +114,7 @@ After the database stack is deployed:
 
 ```bash
 # Connect to the database using the RDS Data API
-npm run db:migrate:prod
+bun run db:migrate:prod
 ```
 
 ### 4. Configure Amplify
@@ -279,9 +279,8 @@ When schema changes are needed:
 Regularly update dependencies:
 
 ```bash
-npm audit
-npm update
-npm audit fix
+bun audit
+bun update
 ```
 
 ## Rollback Procedures

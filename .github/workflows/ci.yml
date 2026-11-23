@@ -1,12 +1,17 @@
 # Continuous Integration workflow
-# Runs tests, linting, and type checking on all PRs and main branch pushes
+# Runs tests, linting, type checking and CDK synthesis on pull requests.
+# No push trigger: a pull_request run already tests the PR merged into its
+# base, so re-running after the merge only spends Actions minutes
+# (psd-dev-standards standards/06 §4, CIO decision 2026-11-18).
 name: CI
 
 on:
-  push:
-    branches: [ "main", "dev" ]
   pull_request:
     branches: [ "main", "dev" ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
@@ -14,91 +19,84 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    
-    strategy:
-      matrix:
-        node-version: [20.x]
-        # Can add more versions if needed: [18.x, 20.x]
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-    
-    - name: Setup Node.js ${{ matrix.node-version }}
+
+    # Node stays installed: next, jest and tsc run on Node via their shebangs.
+    - name: Setup Node.js
       uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
       with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-    
+        node-version: 20.x
+
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      with:
+        bun-version: 1.4.5
+
     - name: Install dependencies
-      run: npm ci
-    
+      run: bun install --frozen-lockfile
+
     - name: Run linter
-      run: npm run lint
-    
+      run: bun run lint
+
     - name: Run type checking
-      run: npm run typecheck
-    
+      run: bun run typecheck
+
     - name: Run tests
-      run: npm test
+      run: bun run test
       env:
         # Prevent tests from timing out in CI
         CI: true
-    
-    # Optional: Upload test coverage if you generate it
-    # - name: Upload coverage reports
-    #   uses: codecov/codecov-action@v3
-    #   if: always()
-    
+
   # CDK validation job - checks infrastructure code
   cdk-validate:
     name: Validate CDK Infrastructure
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-    
+
+    # Node and npm stay: the DbInitLambda asset (infra/database/lambda) is
+    # bundled with npm, locally or in the Lambda Node.js bundling image.
     - name: Setup Node.js
       uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
       with:
         node-version: 20.x
-    
-    - name: Cache root dependencies
-      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
       with:
-        path: ~/.npm
-        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-node-
-    
+        bun-version: 1.4.5
+
     - name: Install dependencies
       run: |
-        npm ci
-        cd infra && npm ci
-    
+        bun install --frozen-lockfile
+        cd infra && bun install --frozen-lockfile
+
     - name: Build CDK TypeScript
-      run: cd infra && npm run build
-    
+      run: cd infra && bun run build
+
     - name: Synthesize CDK stacks
       run: |
         cd infra
-        npx cdk synth --context baseDomain=example.com --context ci=true
+        bun run cdk synth --context baseDomain=example.com --context ci=true
       env:
         # Dummy values for synthesis only - not for deployment
         CDK_DEFAULT_ACCOUNT: '123456789012'
         CDK_DEFAULT_REGION: 'us-east-1'
-    
+
     # Show infrastructure changes on PRs
     - name: CDK Diff
-      if: github.event_name == 'pull_request'
       run: |
         cd infra
         echo "## Infrastructure Changes" >> $GITHUB_STEP_SUMMARY
         echo "```" >> $GITHUB_STEP_SUMMARY
-        npx cdk diff --context baseDomain=example.com --context ci=true 2>&1 | tee -a $GITHUB_STEP_SUMMARY || true
+        bun run cdk diff --context baseDomain=example.com --context ci=true 2>&1 | tee -a $GITHUB_STEP_SUMMARY || true
         echo "```" >> $GITHUB_STEP_SUMMARY
       env:
         CDK_DEFAULT_ACCOUNT: '123456789012'

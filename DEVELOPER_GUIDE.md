@@ -10,9 +10,9 @@ This guide covers local development, coding standards, and testing for this proj
    ```
 2. Install dependencies:
    ```sh
-   npm install
+   bun install
    ```
-   **Important**: This project uses npm as its package manager. Do not use yarn, pnpm, or other package managers.
+   **Important**: This project uses bun as its package manager (PSD org standard). Do not use npm, yarn, pnpm, or other package managers.
 3. Copy and configure environment variables:
    ```sh
    cp .env.example .env.local
@@ -25,9 +25,9 @@ This guide covers local development, coding standards, and testing for this proj
    ```
 5. Run the development server:
    ```sh
-   npm run dev
+   bun run dev
    # For faster development with Turbopack:
-   npm run dev --turbo
+   bun run dev --turbo
    ```
 
 ## Coding Standards
@@ -145,13 +145,13 @@ export async function actionName(): Promise<ActionState<ReturnType>> {
 ## Testing
 - Run all tests before submitting a PR:
   ```sh
-  npm test
-  npm run lint
-  npm run typecheck  # Check TypeScript types
+  bun run test
+  bun run lint
+  bun run typecheck  # Check TypeScript types
   ```
 - Watch mode:
   ```sh
-  npm run test:watch
+  bun run test:watch
   ```
 - Add or update tests for new features and bug fixes.
 - Include tests for:
@@ -262,7 +262,7 @@ export const config = {
 
 ## Performance Monitoring
 - Use `node --heap-prof` for memory profiling during builds
-- Monitor bundle sizes with `npm run analyze` (if configured)
+- Monitor bundle sizes with `bun run analyze` (if configured)
 - Enable `serverComponentsHmrCache` for better development performance
 
 See `docs/DEPLOYMENT.md` for more details and examples.
