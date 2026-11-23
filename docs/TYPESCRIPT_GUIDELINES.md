@@ -228,4 +228,4 @@ The project enforces these TypeScript rules:
 - `@typescript-eslint/no-unused-vars`: Error
 - `@typescript-eslint/no-empty-object-type`: Error
 
-Run `npm run lint` to check for violations.
+Run `bun run lint` to check for violations.

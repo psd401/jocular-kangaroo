@@ -3,7 +3,7 @@
 version: 2
 updates:
   # JavaScript/TypeScript dependencies (root package.json)
-  - package-ecosystem: "npm"
+  - package-ecosystem: "bun"
     directory: "/"
     schedule:
       interval: "weekly"
@@ -23,7 +23,7 @@ updates:
     # regardless of schedule
     
   # CDK Infrastructure dependencies
-  - package-ecosystem: "npm"
+  - package-ecosystem: "bun"
     directory: "/infra"
     schedule:
       interval: "weekly"

@@ -9,9 +9,9 @@ Brief description of what this PR does
 - [ ] Infrastructure change (CDK/AWS)
 
 ## Testing
-- [ ] I have run `npm test` and all tests pass
-- [ ] I have run `npm run lint` with no errors
-- [ ] I have run `npm run typecheck` with no errors
+- [ ] I have run `bun run test` and all tests pass
+- [ ] I have run `bun run lint` with no errors
+- [ ] I have run `bun run typecheck` with no errors
 - [ ] I have tested the changes locally
 
 ## Infrastructure Changes (if applicable)

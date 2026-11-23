@@ -25,16 +25,16 @@ Tests are organized in the `__tests__` directory at the root level. The test sui
 
 ```bash
 # Run all tests
-npm test
+bun run test
 
 # Run tests in watch mode
-npm run test:watch
+bun run test:watch
 
 # Run specific test file
-npm test __tests__/field-mapper.test.ts
+bun run test __tests__/field-mapper.test.ts
 
 # Run tests with coverage
-npm test -- --coverage
+bun run test -- --coverage
 ```
 
 ## Writing Tests

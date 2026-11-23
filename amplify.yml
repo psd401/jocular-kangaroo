@@ -6,15 +6,18 @@ applications:
           commands:
             # Use Node.js 20 (matching aistudio)
             - nvm use 20
+            # The Amplify build image has Node and npm but not bun; npm only
+            # installs the pinned bun (same version as CI), which does the rest.
+            - npm install -g bun@1.2.23
             # Debug environment
             - |
               echo "=== Build Environment Debug ==="
               echo "Node version:" && node --version
-              echo "NPM version:" && npm --version
+              echo "Bun version:" && bun --version
               echo "Current directory:" && pwd
               echo "Directory contents:" && ls -la
-            # Install dependencies (include dev for CSS tools if needed as backup)
-            - npm ci --include=dev
+            # Install dependencies (bun installs devDependencies by default)
+            - bun install --frozen-lockfile
             # Check if UI components exist after install
             - |
               echo "=== UI Components Check ==="
@@ -49,7 +52,7 @@ applications:
               node -e "try { require('postcss'); console.log('✓ postcss available'); } catch(e) { console.log('✗ postcss missing'); }"  
               node -e "try { require('tailwindcss'); console.log('✓ tailwindcss available'); } catch(e) { console.log('✗ tailwindcss missing'); }"
             # Build the Next.js application
-            - npm run build
+            - bun run build
       artifacts:
         baseDirectory: .next
         files:

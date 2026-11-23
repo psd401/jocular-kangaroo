@@ -2,7 +2,7 @@
 
 /**
  * Test script to verify Drizzle ORM connection to AWS RDS via Data API
- * Run with: npm run ts-node scripts/test-drizzle-connection.ts
+ * Run with: bun run ts-node scripts/test-drizzle-connection.ts
  */
 
 import * as dotenv from 'dotenv';

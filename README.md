@@ -58,9 +58,9 @@ This project provisions all core infrastructure using AWS CDK, following the AWS
 
 ### Prerequisites
 
-- Node.js 18+ and npm
+- Node.js 20 and bun
 - AWS CLI configured with appropriate credentials
-- AWS CDK CLI (`npm install -g aws-cdk`)
+- AWS CDK CLI: installed with the `infra/` dependencies; run it as `bun run cdk` from `infra/`
 
 ### Local Development
 
@@ -72,7 +72,7 @@ This project provisions all core infrastructure using AWS CDK, following the AWS
 
 2. Install dependencies:
    ```bash
-   npm install
+   bun install
    ```
 
 3. Copy `.env.example` to `.env.local` and fill in your environment variables:
@@ -82,13 +82,13 @@ This project provisions all core infrastructure using AWS CDK, following the AWS
 
 4. Set up your local database (if using local PostgreSQL):
    ```bash
-   npm run db:generate
-   npm run db:push
+   bun run db:generate
+   bun run db:push
    ```
 
 5. Run the development server:
    ```bash
-   npm run dev
+   bun run dev
    ```
 
    Open [http://localhost:3000](http://localhost:3000) in your browser.
@@ -97,17 +97,17 @@ This project provisions all core infrastructure using AWS CDK, following the AWS
 
 Run the test suite:
 ```bash
-npm test
+bun run test
 ```
 
 Watch mode:
 ```bash
-npm run test:watch
+bun run test:watch
 ```
 
 Run specific test file:
 ```bash
-npm test -- path/to/test.test.ts
+bun run test -- path/to/test.test.ts
 ```
 
 ## Database Management
@@ -116,12 +116,12 @@ The project uses Drizzle ORM with AWS RDS Data API for type-safe database operat
 
 ### Drizzle ORM Commands
 
-- **Check configuration**: `npm run db:check` - Validate drizzle.config.ts
-- **Pull schema**: `npm run db:pull` - Introspect database and generate schema
-- **Generate migrations**: `npm run db:generate` - Create SQL migrations from schema changes
-- **Apply migrations**: `npm run db:migrate` - Apply pending migrations to database
-- **Push schema**: `npm run db:push` - Push schema changes directly (development only)
-- **Open Drizzle Studio**: `npm run db:studio` - Visual database browser
+- **Check configuration**: `bun run db:check` - Validate drizzle.config.ts
+- **Pull schema**: `bun run db:pull` - Introspect database and generate schema
+- **Generate migrations**: `bun run db:generate` - Create SQL migrations from schema changes
+- **Apply migrations**: `bun run db:migrate` - Apply pending migrations to database
+- **Push schema**: `bun run db:push` - Push schema changes directly (development only)
+- **Open Drizzle Studio**: `bun run db:studio` - Visual database browser
 
 ### Database Setup
 
@@ -135,12 +135,12 @@ The project uses Drizzle ORM with AWS RDS Data API for type-safe database operat
 
 2. Test the connection:
    ```bash
-   npm run ts-node scripts/test-drizzle-connection.ts
+   bun run ts-node scripts/test-drizzle-connection.ts
    ```
 
 3. Pull existing schema from database:
    ```bash
-   npm run db:pull
+   bun run db:pull
    ```
 
 The project is migrating from direct RDS Data API calls to Drizzle ORM for improved type safety and developer experience.
