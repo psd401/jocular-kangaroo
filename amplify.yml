@@ -8,7 +8,7 @@ applications:
             - nvm use 20
             # The Amplify build image has Node and npm but not bun; npm only
             # installs the pinned bun (same version as CI), which does the rest.
-            - npm install -g bun@1.2.23
+            - npm install -g bun@1.4.5
             # Debug environment
             - |
               echo "=== Build Environment Debug ==="

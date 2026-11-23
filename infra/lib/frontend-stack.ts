@@ -29,7 +29,7 @@ export class FrontendStack extends cdk.Stack {
             phases: {
               preBuild: {
                 commands: [
-                  'npm install -g bun@1.2.23',
+                  'npm install -g bun@1.4.5',
                   'bun install --frozen-lockfile'
                 ]
               },
