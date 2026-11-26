@@ -23,6 +23,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      with:
+        persist-credentials: false
 
     # Node stays installed: next, jest and tsc run on Node via their shebangs.
     - name: Setup Node.js
@@ -60,6 +62,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      with:
+        persist-credentials: false
 
     # Node and npm stay: the DbInitLambda asset (infra/database/lambda) is
     # bundled with npm, locally or in the Lambda Node.js bundling image.
